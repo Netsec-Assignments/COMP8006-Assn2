@@ -1,26 +1,48 @@
 ###################################################################################################
 # Name: 
-#  Firewall.sh
+#  Assignment_2_Firewall.sh
 # Description:
-#  This application creates a custom firewall for Assignment 1 of Comp 8006.
+#  This application creates a personal firewall for Assignment 2 of Comp 8006.
 #
 # The firewall has the following rules:
-#	Set the default policies to DROP.
-#	Permit inbound/outbound ssh packets.
-#	Permit inbound/outbound www packets.
-#	Drop inbound traffic to port 80 (http) from source ports less than 1024.
-#	Drop all incoming packets from reserved port 0 as well as outbound traffic to port 0.
-#	Create a set of user-defined chains that will implement accounting rules to keep track of
-#	www, ssh traffic, versus the rest of the traffic on your system.
+#	Get user specified parameters (see constraints) and create a set of rules that will implement
+#	the firewall requirements. Specifically the firewall will control:
+#	Inbound/Outbound TCP packets on allowed ports.
+#	Inbound/Outbound UDP packets on allowed ports.
+#	Inbound/Outbound ICMP packets based on type numbers.
+#	All packets that fall through to the default rule will be dropped.
+#	Drop all packets destined for the firewall host from the outside.
+#	Do not accept any packets with a source address from the outside matching your internal network.
+#	You must ensure the you reject those connections that are coming the “wrong” way (i.e., inbound 
+#	SYN packets to high ports).
+#	Accept fragments.
+#	Accept all TCP packets that belong to an existing connection (on allowed ports).
+#	Drop all TCP packets with the SYN and FIN bit set.
+#	Do not allow Telnet packets at all.
+#	Block all external traffic directed to ports 32768 – 32775, 137 – 139, TCP ports 111 and 515.
+#	For FTP and SSH services, set control connections to "Minimum Delay" and FTP data to "Maximum Throughput".
 #
 # The Firewall has the following constraints:
-#	You must ensure the the firewall drops all inbound SYN packets, unless there is a rule that
-#	permits inbound traffic.
-#	Remember to allow DNS and DHCP traffic through so that your machine can function properly.
+#	The user configuration section will allow a user to set at least the following parameters:
+#		Name and location of the utility you are using to implement the firewall.
+#		Internal network address space and the network device.
+#		Outside address space and the network device.
+#		TCP services that will be allowed.
+#		UDP services that will be allowed.
+#		ICMP services that will be allowed.
+#	Only allow NEW and ESTABLISHED - Stateful filtering
+#	You must ensure that you reject those connections that are coming the "wrong" way,
+#	meaning inbound connection requests (unless of course it is to a permitted service).
 #
 ###################################################################################################
 
 #!/bin/bash
+
+#DEFAULT VALUES
+INTERNALADDRESS=""
+INTERNALDEVICE=""
+EXTERNALADDRESS=""
+EXTERNALDEVICE=""
 
 ###################################################################################################
 # Name: 
@@ -38,29 +60,31 @@ mainMenu()
 	displayMenu
 	read ltr rest
 	case ${ltr} in
+	    [Cc])	customizeOptions
+                mainMenu;;
 	    [Ee])	deleteFilters
-			resetFilters
-			createChainForWWWSSH
-			allowDNSAndDHCPTraffic
-			dropPortEightyToTenTwentyFour
-			permitInboundOutboundSSH
-			permitInboundOutboundWWW
-			permitInboundOutboundSSL
-			dropInvalidTCPPacketsInbound			
-			dropPortZeroTraffic
-			setDefaultToDrop
-			continueApplication
-			mainMenu;;
-	    [Ll])       listAllRules
-			continueApplication
-			mainMenu;;
-	    [Rr])       deleteFilters
-			resetFilters
-			continueApplication
-			mainMenu;;
+			    resetFilters
+			    createChainForWWWSSH
+			    allowDNSAndDHCPTraffic
+			    dropPortEightyToTenTwentyFour
+			    permitInboundOutboundSSH
+			    permitInboundOutboundWWW
+			    permitInboundOutboundSSL
+			    dropInvalidTCPPacketsInbound			
+			    dropPortZeroTraffic
+			    setDefaultToDrop
+			    continueApplication
+			    mainMenu;;
+	    [Ll])   listAllRules
+			    continueApplication
+			    mainMenu;;
+	    [Rr])   deleteFilters
+			    resetFilters
+			    continueApplication
+			    mainMenu;;
 	    [Qq])	exit	;;
-	    
 	    *)	echo
+	    
 		echo Unrecognized choice: ${ltr}
                 continueApplication
 		mainMenu
@@ -78,11 +102,12 @@ mainMenu()
 displayMenu()
 {
     cat << 'MENU'
-        Welcome to Lab #1: Personal Firewall
-        By Mat Siwoski
-
+        Welcome to Lab #2: Personal Firewall
+        By Mat Siwoski & Shane Spoor
+        
+        C...........................  Customize Firewall Settings
         E...........................  Enable Firewall
-	L...........................  List all chains
+	    L...........................  List all chains
         R...........................  Reset/Disable Firewall
         Q...........................  Quit
 
@@ -96,6 +121,19 @@ MENU
 #  continueApplication
 # Description:
 #  This function deals with pressing the Enter button after buttons have been pressed.
+###################################################################################################
+continueApplication()
+{
+    echo
+    echo -n ' Press Enter to continue.....'
+    read rest
+}
+
+###################################################################################################
+# Name: 
+#  customizeOptions
+# Description:
+#  This function handles the option customizations.
 ###################################################################################################
 continueApplication()
 {
