@@ -154,6 +154,18 @@ configureICMPServices()
     done
 }
 
+startFirewall()
+{
+    echo 'Starting the firewall'
+    export INTERNALADDRESS INTERNALDEVICE EXTERNALADDRESS EXTERNALDEVICE TCP_SERVICES UDP_SERVICES ICMP_SERVICES
+    if ! [ -f ${FIREWALL_PATH} ]; then
+        echo "No such file or directory ${FIREWALL_PATH}. Please enter a new location."
+    fi
+    chmod +x $FIREWALL_PATH
+    sh $FIREWALL_PATH
+}
+
+
 ###################################################################################################
 # Name: 
 #  mainMenu
@@ -170,29 +182,32 @@ mainMenu()
 	displayMenu
 	read ltr rest
 	case ${ltr} in
-	    [Ll])   configureFirewallLocation
+	    [1])   configureFirewallLocation
 			    continueApplication
 			    mainMenu;;
-	    [Aa])	configureExternalAddressAndDevice
+	    [2])	configureExternalAddressAndDevice
         	    continueApplication
                 mainMenu;;
         [3])    configureInternalAddressAndDevice
                 continueApplication
                 mainMenu;;
-        [Tt])   configureTCPServices
+        [4])   configureTCPServices
                 continueApplication
                 mainMenu;;
-        [Uu])   configureUDPServices
+        [5])   configureUDPServices
                 continueApplication
                 mainMenu;;
-        [Ii])   configureICMPServices
+        [6])   configureICMPServices
                 continueApplication
                 mainMenu;;
-        [Cc])   mainMenu;;
-	    [Rr])   deleteFilters
-			    resetFilters
-			    continueApplication
-			    mainMenu;;
+        [7])    continueApplication
+                mainMenu;;
+        [8])    continueApplication
+                mainMenu;;
+        [9])    continueApplication
+                mainMenu;;
+        [10])   continueApplication
+                mainMenu;;
 	    [Qq])	exit	;;
 	    *)	echo
 	    
@@ -216,17 +231,17 @@ displayMenu()
         Welcome to Assignment #2: Standalone Firewall
         By Mat Siwoski & Shane Spoor
         
-        L...........................  Specify Firewall Script Location/Name
-        A...........................  Customise External Address Space and Device
-        3...........................  Customise Internal Address Space and Device      
-        T...........................  Configure TCP Services
-        U...........................  Configure UDP Services
-        I...........................  Configure ICMP Services
-        C...........................  Show Current Settings
-        R...........................  Reset Settings
-        S...........................  Start Firewall
-        D...........................  Disable Firewall
-        Q...........................  Quit
+        1............................  Specify Firewall Script Location/Name
+        2............................  Customise External Address Space and Device
+        3............................  Customise Internal Address Space and Device      
+        4............................  Configure TCP Services
+        5............................  Configure UDP Services
+        6............................  Configure ICMP Services
+        7............................  Show Current Settings
+        8............................  Reset Settings
+        9............................  Start Firewall
+        10...........................  Disable Firewall
+        Q............................  Quit
 
 MENU
    echo -n '      Press  letter for choice, then Return > '

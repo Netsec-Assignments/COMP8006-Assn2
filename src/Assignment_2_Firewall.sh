@@ -38,109 +38,6 @@
 
 #!/bin/bash
 
-#DEFAULT VALUES
-INTERNALADDRESS=""
-INTERNALDEVICE=""
-EXTERNALADDRESS=""
-EXTERNALDEVICE=""
-
-###################################################################################################
-# Name: 
-#  mainMenu
-# Description:
-#  This function is the main menu of the program. It displays the
-#  options available. The user is able to choose and option and
-#  the program will go to the corresponding action.
-###################################################################################################
-mainMenu()
-{
-    while true
-    do
-	clear
-	displayMenu
-	read ltr rest
-	case ${ltr} in
-	    [Cc])	customizeOptions
-                mainMenu;;
-	    [Ee])	deleteFilters
-			    resetFilters
-			    createChainForWWWSSH
-			    allowDNSAndDHCPTraffic
-			    dropPortEightyToTenTwentyFour
-			    permitInboundOutboundSSH
-			    permitInboundOutboundWWW
-			    permitInboundOutboundSSL
-			    dropInvalidTCPPacketsInbound			
-			    dropPortZeroTraffic
-			    setDefaultToDrop
-			    continueApplication
-			    mainMenu;;
-	    [Ll])   listAllRules
-			    continueApplication
-			    mainMenu;;
-	    [Rr])   deleteFilters
-			    resetFilters
-			    continueApplication
-			    mainMenu;;
-	    [Qq])	exit	;;
-	    *)	echo
-	    
-		echo Unrecognized choice: ${ltr}
-                continueApplication
-		mainMenu
-		;;
-	esac        
-    done
-}
-
-###################################################################################################
-# Name: 
-#  displayMenu
-# Description:
-#  This function displays the menu options to the user.
-###################################################################################################
-displayMenu()
-{
-    cat << 'MENU'
-        Welcome to Lab #2: Personal Firewall
-        By Mat Siwoski & Shane Spoor
-        
-        C...........................  Customize Firewall Settings
-        E...........................  Enable Firewall
-	    L...........................  List all chains
-        R...........................  Reset/Disable Firewall
-        Q...........................  Quit
-
-MENU
-    echo -n '      Press  letter for choice, then Return > '
-}
-
-
-###################################################################################################
-# Name: 
-#  continueApplication
-# Description:
-#  This function deals with pressing the Enter button after buttons have been pressed.
-###################################################################################################
-continueApplication()
-{
-    echo
-    echo -n ' Press Enter to continue.....'
-    read rest
-}
-
-###################################################################################################
-# Name: 
-#  customizeOptions
-# Description:
-#  This function handles the option customizations.
-###################################################################################################
-continueApplication()
-{
-    echo
-    echo -n ' Press Enter to continue.....'
-    read rest
-}
 
 ###################################################################################################
 # Name: 
@@ -171,7 +68,7 @@ resetFilters()
 	echo 'Setting default policy to ALLOW for firewall'
 	iptables -P INPUT ACCEPT
 	iptables -P FORWARD ACCEPT
-	iptables -P INPUT ACCEPT
+	iptables -P OUTPUT ACCEPT
 }
 
 ###################################################################################################
@@ -190,29 +87,6 @@ setDefaultToDrop()
 
 ###################################################################################################
 # Name: 
-#  createChainForWWWSSH
-# Description:
-#  This function creates the chains for SSH and WWW traffic.
-###################################################################################################
-createChainForWWWSSH()
-{
-	echo 'Creating chains for SSH and WWW Traffic'
-	iptables -N ssh-in
-	iptables -N ssh-out
-	iptables -A ssh-in -j ACCEPT
-	iptables -A ssh-out -j ACCEPT
-	iptables -N www-in
-	iptables -N www-out
-	iptables -A www-in -j ACCEPT
-	iptables -A www-out -j ACCEPT
-	iptables -N other-in
-	iptables -N other-out	
-	iptables -A other-in -j ACCEPT
-	iptables -A other-out -j ACCEPT
-}
-
-###################################################################################################
-# Name: 
 #  dropPortZeroTraffic
 # Description:
 #  This function drops all incoming packets and inbound traffic from port 0
@@ -225,22 +99,20 @@ dropPortZeroTraffic()
 	iptables -A INPUT -p tcp --sport 0 -j DROP
 }
 
-###################################################################################################
-# Name: 
-#  dropPortEightyToTenTwentyFour
-# Description:
-#  This function drops inbound traffic to port 80 (http) from source ports less than 1024.
-###################################################################################################
-dropPortEightyToTenTwentyFour()
+inOutboundTCP()
 {
-	echo 'Drop inbound traffic to port 80 (http) from source ports less than 1024.'
-	iptables -A INPUT -p tcp --dport 80 --sport 0:1023 -j DROP
+    echo 'Setting TCP rules'
+    for i in "${TCP_SERVICES[@]}"; do
+        iptables -A FORWARD -d $INTERNALADDRESS -i $EXTERNALDEVICE -p tcp $i
+    done
 }
+
+
 
 ###################################################################################################
 # Name: 
 #  allowDNSAndDHCPTraffic
-# Description:
+# Description:H
 #  This function drops inbound traffic to port 80 (http) from source ports less than 1024.
 ###################################################################################################
 allowDNSAndDHCPTraffic()
@@ -309,25 +181,18 @@ dropInvalidTCPPacketsInbound()
 	iptables -A INPUT -p tcp --syn -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
 	iptables -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
-	iptables -A INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j DROP
 	iptables -A INPUT -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
-	iptables -A INPUT -p tcp --tcp-flags ALL ACK,URG -j DROP
-	iptables -A INPUT -p tcp --tcp-flags FIN FIN -j DROP
-	iptables -A INPUT -p tcp --tcp-flags FIN,URG,PSH FIN,URG,PSH -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
 }
 
-###################################################################################################
-# Name: 
-#  listAllRules
-# Description:
-#  This function list all the rules for the chains
-###################################################################################################
-listAllRules()
-{
-	echo 'List all the rules for the chains'
-	iptables -L -v
-}
+route add -n
 
-mainMenu
+deleteFilters
+resetFilters
+setDefaultToDrop
+dropPortZeroTraffic
+
+dropInvalidTCPPacketsInbound			
+
+
