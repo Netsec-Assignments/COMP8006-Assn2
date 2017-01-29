@@ -1,10 +1,158 @@
 #!/bin/bash
 
 #DEFAULT VALUES
+FIREWALL_PATH=""
+
+# Service configuration
+TCP_SERVICES=()
+UDP_SERVICES=()
+ICMP_SERVICES=()
+
 INTERNALADDRESS=""
 INTERNALDEVICE=""
 EXTERNALADDRESS=""
 EXTERNALDEVICE=""
+
+###################################################################################################
+# Name: 
+#  continueApplication
+# Description:
+#  This function deals with pressing the Enter button after buttons have been pressed.
+###################################################################################################
+continueApplication()
+{
+    echo
+    echo -n ' Press Enter to continue.....'
+    read rest
+}
+
+configureFirewallLocation()
+{
+    echo 'Enter path to the firewall:'
+    read fw_path rest
+    FIREWALL_PATH=${fw_path}
+    if ! [ -f ${FIREWALL_PATH} ]; then
+        echo "No such file or directory ${fw_path}. Please enter a new location."
+    fi
+}
+
+configureInternalAddressAndDevice()
+{
+    echo 'Enter the internal network address space'
+    read addr_space rest
+    INTERNALADDRESS=${addr_space}
+    if [ -z ${INTERNALADDRESS} ]; then
+        echo "Please enter a valid address space."
+    fi
+    
+    echo -n 'Enter the internal network device'
+    read device_name rest
+    INTERNALDEVICE=${device_name}
+    if [ -z ${INTERNALDEVICE} ]; then
+        echo "Please enter a valid device."
+    fi
+}
+
+configureExternalAddressAndDevice()
+{
+    echo 'Enter the external network address space'
+    read addr_space rest
+    EXTERNALADDRESS=${addr_space}
+    if [ -z ${EXTERNALADDRESS} ]; then
+        echo "Please enter a valid address space."
+    fi
+    
+    echo -n 'Enter the external network device'
+    read device_name rest
+    EXTERNALDEVICE=${device_name}
+    if [ -z ${EXTERNALDEVICE} ]; then
+        echo "Please enter a valid device."
+    fi
+}
+
+configureTCPServices()
+{
+    echo 'Enter a semicolon-separated list of allowed TCP services.'
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        SERVICE=`getent services $i/tcp`
+        echo "SERVICE is: $SERVICE"
+        if [ -z "$SERVICE" ]; then
+            echo "No such service $i for TCP. Please enter a valid service name or port number."
+        else
+            TCP_SERVICES+=("$i")
+        fi
+    done
+}
+
+configureUDPServices()
+{
+    echo 'Enter a semicolon-separated list of allowed UDP services.'
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        SERVICE=`getent services $i/udp`
+        echo "SERVICE is: $SERVICE"
+        if [ -z "$SERVICE" ]; then
+            echo "No such service $i for UDP. Please enter a valid service name or port number."
+        else
+            UDP_SERVICES+=("$i")
+        fi
+    done
+}
+
+configureICMPServices()
+{
+    echo 'Enter a semicolon-separated list of allowed ICMP services (by type; see below).'
+    echo '
+    Type    Name					
+    ----	-------------------------
+      0	    Echo Reply				 
+      1	    Unassigned				 
+      2	    Unassigned				 
+      3	    Destination Unreachable	
+      4	    Source Quench			
+      5	    Redirect				
+      6	    Alternate Host Address	
+      7	    Unassigned				
+      8	    Echo					
+      9	    Router Advertisement	
+     10	    Router Selection		
+     11	    Time Exceeded			
+     12	    Parameter Problem		
+     13	    Timestamp				
+     14	    Timestamp Reply			
+     15	    Information Request		
+     16	    Information Reply		
+     17	    Address Mask Request    
+     18	    Address Mask Reply		
+     19	    Reserved (for Security)	
+     20-29  Reserved (for Robustness Experiment)	    
+     30     Traceroute
+     31     Datagram Conversion Error
+     32     Mobile Host Redirect 
+     33     IPv6 Where-Are-You   
+     34     IPv6 I-Am-Here       
+     35     Mobile Registration Request
+     36     Mobile Registration Reply  
+     37     Domain Name Request        
+     38     Domain Name Reply          
+     39     SKIP                       
+     40     Photuris
+     41-255 Reserved'
+     
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        if [ "$i" -lt 0 ] || [ "$i" -gt 255 ]; then
+            echo "$i is not valid ICMP type. Type must be between 0 and 255 (inclusive)."
+        else
+            echo "Type is: $i"
+            ICMP_SERVICES+=("$i")    
+        fi        
+    done
+}
 
 ###################################################################################################
 # Name: 
@@ -22,24 +170,25 @@ mainMenu()
 	displayMenu
 	read ltr rest
 	case ${ltr} in
-	    [Cc])	customizeOptions
+	    [Ll])   configureFirewallLocation
+			    continueApplication
+			    mainMenu;;
+	    [Aa])	configureExternalAddressAndDevice
+        	    continueApplication
                 mainMenu;;
-	    [Ee])	deleteFilters
-			    resetFilters
-			    createChainForWWWSSH
-			    allowDNSAndDHCPTraffic
-			    dropPortEightyToTenTwentyFour
-			    permitInboundOutboundSSH
-			    permitInboundOutboundWWW
-			    permitInboundOutboundSSL
-			    dropInvalidTCPPacketsInbound			
-			    dropPortZeroTraffic
-			    setDefaultToDrop
-			    continueApplication
-			    mainMenu;;
-	    [Ll])   listAllRules
-			    continueApplication
-			    mainMenu;;
+        [3])    configureInternalAddressAndDevice
+                continueApplication
+                mainMenu;;
+        [Tt])   configureTCPServices
+                continueApplication
+                mainMenu;;
+        [Uu])   configureUDPServices
+                continueApplication
+                mainMenu;;
+        [Ii])   configureICMPServices
+                continueApplication
+                mainMenu;;
+        [Cc])   mainMenu;;
 	    [Rr])   deleteFilters
 			    resetFilters
 			    continueApplication
@@ -74,7 +223,13 @@ displayMenu()
         U...........................  Configure UDP Services
         I...........................  Configure ICMP Services
         C...........................  Show Current Settings
+        R...........................  Reset Settings
+        S...........................  Start Firewall
+        D...........................  Disable Firewall
+        Q...........................  Quit
 
 MENU
    echo -n '      Press  letter for choice, then Return > '
 }
+
+mainMenu
