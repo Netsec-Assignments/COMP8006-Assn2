@@ -8,10 +8,10 @@ TCP_SERVICES=()
 UDP_SERVICES=()
 ICMP_SERVICES=()
 
-INTERNALADDRESS=""
-INTERNALDEVICE=""
-EXTERNALADDRESS=""
-EXTERNALDEVICE=""
+INTERNAL_ADDRESS_SPACE=""
+INTERNAL_DEVICE=""
+EXTERNAL_ADDRESS_SPACE=""
+EXTERNAL_DEVICE=""
 
 ###################################################################################################
 # Name: 
@@ -36,36 +36,36 @@ configureFirewallLocation()
     fi
 }
 
-configureInternalAddressAndDevice()
+configureINTERNAL_ADDRESS_SPACEAndDevice()
 {
     echo 'Enter the internal network address space'
     read addr_space rest
-    INTERNALADDRESS=${addr_space}
-    if [ -z ${INTERNALADDRESS} ]; then
+    INTERNAL_ADDRESS_SPACE=${addr_space}
+    if [ -z ${INTERNAL_ADDRESS_SPACE} ]; then
         echo "Please enter a valid address space."
     fi
     
     echo -n 'Enter the internal network device'
     read device_name rest
-    INTERNALDEVICE=${device_name}
-    if [ -z ${INTERNALDEVICE} ]; then
+    INTERNAL_DEVICE=${device_name}
+    if [ -z ${INTERNAL_DEVICE} ]; then
         echo "Please enter a valid device."
     fi
 }
 
-configureExternalAddressAndDevice()
+configureEXTERNAL_ADDRESS_SPACEAndDevice()
 {
     echo 'Enter the external network address space'
     read addr_space rest
-    EXTERNALADDRESS=${addr_space}
-    if [ -z ${EXTERNALADDRESS} ]; then
+    EXTERNAL_ADDRESS_SPACE=${addr_space}
+    if [ -z ${EXTERNAL_ADDRESS_SPACE} ]; then
         echo "Please enter a valid address space."
     fi
     
     echo -n 'Enter the external network device'
     read device_name rest
-    EXTERNALDEVICE=${device_name}
-    if [ -z ${EXTERNALDEVICE} ]; then
+    EXTERNAL_DEVICE=${device_name}
+    if [ -z ${EXTERNAL_DEVICE} ]; then
         echo "Please enter a valid device."
     fi
 }
@@ -157,7 +157,7 @@ configureICMPServices()
 startFirewall()
 {
     echo 'Starting the firewall'
-    export INTERNALADDRESS INTERNALDEVICE EXTERNALADDRESS EXTERNALDEVICE TCP_SERVICES UDP_SERVICES ICMP_SERVICES
+    export INTERNAL_ADDRESS_SPACE INTERNAL_DEVICE EXTERNAL_ADDRESS_SPACE EXTERNAL_DEVICE TCP_SERVICES UDP_SERVICES ICMP_SERVICES
     if ! [ -f ${FIREWALL_PATH} ]; then
         echo "No such file or directory ${FIREWALL_PATH}. Please enter a new location."
     fi
@@ -185,10 +185,10 @@ mainMenu()
 	    [1])   configureFirewallLocation
 			    continueApplication
 			    mainMenu;;
-	    [2])	configureExternalAddressAndDevice
+	    [2])	configureEXTERNAL_ADDRESS_SPACEAndDevice
         	    continueApplication
                 mainMenu;;
-        [3])    configureInternalAddressAndDevice
+        [3])    configureINTERNAL_ADDRESS_SPACEAndDevice
                 continueApplication
                 mainMenu;;
         [4])   configureTCPServices

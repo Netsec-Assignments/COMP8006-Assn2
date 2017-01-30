@@ -38,6 +38,8 @@
 
 #!/bin/bash
 
+INTERNAL_GATEWAY_IP="192.168.0.69"
+
 
 ###################################################################################################
 # Name: 
@@ -186,7 +188,10 @@ dropInvalidTCPPacketsInbound()
 	iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
 }
 
-route add -n
+# ethtool -s [interface] mdix on
+
+ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP
 
 deleteFilters
 resetFilters
