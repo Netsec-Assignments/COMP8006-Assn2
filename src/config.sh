@@ -25,6 +25,9 @@ INTERNAL_ADDRESS_SPACE=""
 INTERNAL_DEVICE=""
 EXTERNAL_ADDRESS_SPACE=""
 EXTERNAL_DEVICE=""
+STATIC_IP="10.0.4.2"
+GATEWAY_IP="10.0.4.1"
+
 
 ###################################################################################################
 # Name: 
@@ -291,6 +294,73 @@ disableFirewall()
 
 ###################################################################################################
 # Name: 
+#  internalMachineSetup
+# Description:
+#  This function disables the NIC card.
+###################################################################################################
+internalMachineSetup()
+{
+    echo 'Setting up the internal machine'
+
+	ip link set eno1 down
+	ip addr add $STATIC_IP 
+	ip link set enp3s2 up
+	ip route add default via $GATEWAY_IP
+}
+
+###################################################################################################
+# Name: 
+#  resetMachine
+# Description:
+#  This function resets the machine's NIC cards.
+###################################################################################################
+resetMachine()
+{
+    echo 'Resetting the machine.'
+
+	ip link set eno1 up
+	ip link set enp3s2 down
+}
+
+###################################################################################################
+# Name: 
+#  setupRouting
+# Description:
+#  This function sets up routing on the device.
+###################################################################################################
+setupRouting()
+{
+    ethtool -s $INTERNAL_DEVICE mdix on
+
+    ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+    ip link set $INTERNAL_DEVICE up
+
+    echo "1" >/proc/sys/net/ipv4/ip_forward
+
+    ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
+    ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+}
+
+###################################################################################################
+# Name: 
+#  resetRouting
+# Description:
+#  This function resets the machine's NIC cards.
+###################################################################################################
+resetRouting()
+{
+    ethtool -s $INTERNAL_DEVICE mdix auto
+
+    echo "0" >/proc/sys/net/ipv4/ip_forward
+    
+    ip route delete $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
+    ip route delete $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+
+    ip link set $INTERNAL_DEVICE down
+}
+
+###################################################################################################
+# Name: 
 #  mainMenu
 # Description:
 #  This function is the main menu of the program. It displays the
@@ -335,6 +405,18 @@ mainMenu()
 		[10])	disableFirewall
 				continueApplication
 		        mainMenu;;
+		[11])	enableRouting
+				continueApplication
+		        mainMenu;;
+		[12])	resetRouting
+				continueApplication
+		        mainMenu;;
+		[13])	internalMachineSetup
+				continueApplication
+		        mainMenu;;
+		[14])	resetMachine
+				continueApplication
+		        mainMenu;;
 	    [Qq])	exit	;;
 	    *)	echo
 	    
@@ -368,6 +450,11 @@ displayMenu()
         8............................  Reset Settings
         9............................  Start Firewall
         10...........................  Disable Firewall
+        11...........................  Enable Routing
+        12...........................  Disable Routing
+        13...........................  Enable the NIC 
+        14...........................  Reset the NIC on the machine
+
         Q............................  Quit
 
 MENU
