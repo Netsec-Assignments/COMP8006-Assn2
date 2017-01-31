@@ -222,7 +222,7 @@ startFirewall()
 
 ###################################################################################################
 # Name: 
-#  startFirewall
+#  resetSettings
 # Description:
 #  This function resets the settings of the firewall.
 ###################################################################################################
@@ -326,10 +326,10 @@ mainMenu()
 		[7])	showCurrentSettings
 				continueApplication
 		        mainMenu;;
-		[8])	resetSettings
+		[8])	startFirewall
 				continueApplication
 		        mainMenu;;
-		[9])	startFirewall
+		[9])	resetSettings
 				continueApplication
 		        mainMenu;;
 		[10])	disableFirewall
