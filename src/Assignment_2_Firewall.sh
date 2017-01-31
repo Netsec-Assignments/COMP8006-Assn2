@@ -38,7 +38,8 @@
 
 #!/bin/bash
 
-INTERNAL_GATEWAY_IP="192.168.0.69"
+INTERNAL_GATEWAY_IP="10.0.4.1"
+EXTERNAL_GATEWAY_IP="192.168.0.8"
 
 
 ###################################################################################################
@@ -191,7 +192,10 @@ dropInvalidTCPPacketsInbound()
 # ethtool -s [interface] mdix on
 
 ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
-ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP
+ip link set $INTERNAL_DEVICE up
+echo "1" >/proc/sys/net/ipv4/ip_forward
+ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
+ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
 
 deleteFilters
 resetFilters
