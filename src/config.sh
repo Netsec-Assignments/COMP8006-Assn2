@@ -274,6 +274,22 @@ showCurrentSettings()
 
 ###################################################################################################
 # Name: 
+#  disableFirewall
+# Description:
+#  This function disables the firewall.
+###################################################################################################
+showCurrentSettings()
+{
+    echo 'Disabling the firewall.'
+	iptables -F
+	iptables -X
+	iptables -P INPUT ACCEPT
+	iptables -P OUTPUT ACCEPT
+	iptables -P FORWARD ACCEPT
+}
+
+###################################################################################################
+# Name: 
 #  mainMenu
 # Description:
 #  This function is the main menu of the program. It displays the
