@@ -278,7 +278,7 @@ showCurrentSettings()
 # Description:
 #  This function disables the firewall.
 ###################################################################################################
-showCurrentSettings()
+disableFirewall()
 {
     echo 'Disabling the firewall.'
 	iptables -F
