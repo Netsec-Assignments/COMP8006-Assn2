@@ -192,11 +192,11 @@ permitInboundOutboundSSL()
 
 ###################################################################################################
 # Name: 
-#  dropInvalidTCPPacketsInbound
+#  createDropTrafficRules
 # Description:
 #  This function drops invalid TCP Packets that are inbound
 ###################################################################################################
-dropInvalidTCPPacketsInbound()
+createDropTrafficRules()
 {
 	echo 'Drop invalid TCP Packets that are inbound'
 	iptables -A INPUT -p tcp --syn -j DROP
@@ -205,8 +205,39 @@ dropInvalidTCPPacketsInbound()
 	iptables -A INPUT -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+
+	echo 'Drop telnet in and out'
+	iptables -A FORWARD -p tcp --sport 23 -j DROP	
+
+	echo 'Drop traffic to 32768-32775'
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 32768:32775 -j DROP
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -p udp -m multiport --dports 32768:32775 -j DROP
+
+	echo 'Drop traffic to 137-139'
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 137:139 -j DROP
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -p udp -m multiport --dports 137:139 -j DROP
+
+	echo 'Drop traffic to 111 & 515'
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 111,515 -j DROP
+
+	echo 'Drop all network activity that appears to be from the internal network'
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j DROP
+
+	echo 'Drop any SYN targeting high port coming the wrong way'
+	iptables -A FORWARD -p tcp --syn -m multiport --dports 1025:65535 -j DROP
+
+	echo 'Drop service to service traffic.'
+	iptables -A FORWARD -p tcp --sport 0:1024 --dport 0:1024 -j DROP
+	iptables -A FORWARD -p udp --sport 0:1024 --dport 0:1024 -j DROP
+
 }
 
+###################################################################################################
+# Name: 
+#  createFirewallRules
+# Description:
+#  This function creates the firewall rules.
+###################################################################################################
 createFirewallRules()
 {
     iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
@@ -217,10 +248,17 @@ createFirewallRules()
         iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
     done
 
+	#drop TCP rules not declared by user.
+	iptables -A tcp -j DROP 
+
+
     for i in "${UDP_SERVICES[@]}"; do
         echo "Adding rule for UDP service: $i"
         iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -j ACCEPT
     done
+
+	#drop UDP rules not declared by user.
+	iptables -A udp -j DROP 
 
 
     for i in "${ICMP_SERVICES[@]}"; do
@@ -228,9 +266,17 @@ createFirewallRules()
         iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
         iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
     done
+	#drop ICMP rules not declared by user.
+	iptables -A icmp -j DROP 
 
 }
 
+###################################################################################################
+# Name: 
+#  createFirewallRules
+# Description:
+#  This function setups the routing.
+###################################################################################################
 setupRouting()
 {
     ethtool -s $INTERNAL_DEVICE mdix on
@@ -244,6 +290,12 @@ setupRouting()
     ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
 }
 
+###################################################################################################
+# Name: 
+#  resetRouting
+# Description:
+#  This function resets the routing.
+###################################################################################################
 resetRouting()
 {
     ethtool -s $INTERNAL_DEVICE mdix auto
@@ -273,6 +325,6 @@ deleteFilters
 resetFilters
 setDefaultToDrop
 dropPortZeroTraffic
-dropInvalidTCPPacketsInbound			
+createDropTrafficRules			
 createFirewallRules
 
