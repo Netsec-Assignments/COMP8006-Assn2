@@ -242,6 +242,7 @@ resetSettings()
 	EXTERNAL_ADDRESS_SPACE=""
 	EXTERNAL_DEVICE=""
 
+    disableFirewall
 }
 
 ###################################################################################################

@@ -39,6 +39,7 @@
 #!/bin/bash
 
 INTERNAL_GATEWAY_IP="10.0.4.1"
+INTERNAL_STATIC_IP='10.0.4.2'
 EXTERNAL_GATEWAY_IP="192.168.0.8"
 
 
@@ -187,6 +188,29 @@ dropInvalidTCPPacketsInbound()
 	iptables -A INPUT -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
 	iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+}
+
+createFirewallRules()
+{
+    iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
+    # Loop through allowed services and set up rules to allow them for forwarding through the internal gateway
+    for i in "${TCP_SERVICES[@]}"; do
+        echo "Adding rule for TCP service: $i"
+        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
+    done
+
+    for i in "${UDP_SERVICES[@]}"; do
+        echo "Adding rule for UDP service: $i"
+        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -j ACCEPT
+    done
+
+
+    for i in "${ICMP_SERVICES[@]}"; do
+        echo "Adding rule for ICMP type: $i"
+        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
+        iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
+    done
+
 }
 
 # ethtool -s [interface] mdix on
