@@ -310,8 +310,8 @@ internalMachineSetup()
 
 	ip link set eno1 down
 	ip link set enp3s2 up
-	ip addr add $STATIC_IP dev enp3s2
-	ip route add default via $GATEWAY_IP
+	ip addr add $INTERNAL_STATIC_IP_MASKED dev enp3s2
+	ip route add default via $INTERNAL_GATEWAY_IP
 }
 
 ###################################################################################################
