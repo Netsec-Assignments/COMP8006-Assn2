@@ -75,7 +75,7 @@ configureInternalAddressSpaceAndDevice()
         echo "Please enter a valid address space."
     fi
     
-    echo -n 'Enter the internal network device'
+    echo 'Enter the internal network device'
     read device_name rest
     INTERNAL_DEVICE=${device_name}
     if [ -z ${INTERNAL_DEVICE} ]; then
@@ -98,7 +98,7 @@ configureExternalAddressSpaceAndDevice()
         echo "Please enter a valid address space."
     fi
     
-    echo -n 'Enter the external network device'
+    echo 'Enter the external network device'
     read device_name rest
     EXTERNAL_DEVICE=${device_name}
     if [ -z ${EXTERNAL_DEVICE} ]; then
@@ -262,15 +262,15 @@ showCurrentSettings()
     echo "The Firewall path is: ${FIREWALL_PATH}"
     echo "The following TCP services are selected:"
     for i in "${TCP_SERVICES[@]}"; do
-        echo '                                        %s\n' "$i"
+        echo '                                            ' "$i"
     done
     echo "The following UDP services are selected:"
 	for i in "${UDP_SERVICES[@]}"; do
-		echo '                                        %s\n' "$i"
+		echo '                                            ' "$i"
 	done
  	echo "The following ICMP services are selected:"
 	for i in "${ICMP_SERVICES[@]}"; do
-		echo '                                        %s\n' "$i"
+		echo '                                            ' "$i"
 	done    
     echo "The Internal Address Space is: ${INTERNAL_ADDRESS_SPACE}"
     echo "The Internal Device is: ${INTERNAL_DEVICE}"
@@ -369,7 +369,23 @@ resetRouting()
 ###################################################################################################
 setDefaults()
 {
+	echo "Setting up default values."
+	FIREWALL_PATH="./fw.sh"
+ 
+	TCP_SERVICES+="domain;"
+	TCP_SERVICES+="http;"
+	TCP_SERVICES+="https;"
+	TCP_SERVICES+="ssh"
+	UDP_SERVICES+="domain;"
+	UDP_SERVICES+="bootpc;"
+	UDP_SERVICES+="bootps"
+	ICMP_SERVICES+="0;"
+	ICMP_SERVICES+="8"
 
+	INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
+	INTERNAL_DEVICE="enp3s2"
+	EXTERNAL_ADDRESS_SPACE="192.168.0.0/24"
+	EXTERNAL_DEVICE="eno1"
 }
 
 ###################################################################################################
@@ -470,7 +486,7 @@ displayMenu()
         12...........................  Disable Routing
         13...........................  Enable the NIC 
         14...........................  Reset the NIC on the machine
-        14...........................  Set Defaults
+        15...........................  Set Defaults
 
         Q............................  Quit
 
