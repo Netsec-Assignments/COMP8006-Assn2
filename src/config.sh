@@ -309,8 +309,8 @@ internalMachineSetup()
     echo 'Setting up the internal machine'
 
 	ip link set eno1 down
-	ip addr add $STATIC_IP 
 	ip link set enp3s2 up
+	ip addr add $STATIC_IP dev enp3s2
 	ip route add default via $GATEWAY_IP
 }
 
