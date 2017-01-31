@@ -17,9 +17,9 @@
 FIREWALL_PATH=""
 
 # Service configuration
-TCP_SERVICES=()
-UDP_SERVICES=()
-ICMP_SERVICES=()
+TCP_SERVICES=""
+UDP_SERVICES=""
+ICMP_SERVICES=""
 
 INTERNAL_ADDRESS_SPACE=""
 INTERNAL_DEVICE=""
@@ -485,7 +485,7 @@ displayMenu()
         Q............................  Quit
 
 MENU
-   echo -n '      Press  letter for choice, then Return > '
+   echo -n '      Press a Number for your choice, then Return > '
 }
 
 mainMenu
