@@ -274,7 +274,7 @@ showCurrentSettings()
 	done    
     echo "The Internal Address Space is: ${INTERNAL_ADDRESS_SPACE}"
     echo "The Internal Device is: ${INTERNAL_DEVICE}"
-    echo "The External Address Space is: ${EXTERNAL_ADDRESS_SPACE}:"
+    echo "The External Address Space is: ${EXTERNAL_ADDRESS_SPACE}"
     echo "The External Device is: ${EXTERNAL_DEVICE}"
 }
 
@@ -470,6 +470,7 @@ displayMenu()
         12...........................  Disable Routing
         13...........................  Enable the NIC 
         14...........................  Reset the NIC on the machine
+        14...........................  Set Defaults
 
         Q............................  Quit
 
