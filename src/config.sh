@@ -123,7 +123,7 @@ configureTCPServices()
         if [ -z "$SERVICE" ]; then
             echo "No such service $i for TCP. Please enter a valid service name or port number."
         else
-            TCP_SERVICES+=("$i")
+            TCP_SERVICES+="$i;"
         fi
     done
 }
@@ -145,7 +145,7 @@ configureUDPServices()
         if [ -z "$SERVICE" ]; then
             echo "No such service $i for UDP. Please enter a valid service name or port number."
         else
-            UDP_SERVICES+=("$i")
+            UDP_SERVICES+="$i;"
         fi
     done
 }
@@ -203,7 +203,7 @@ configureICMPServices()
             echo "$i is not valid ICMP type. Type must be between 0 and 255 (inclusive)."
         else
             echo "Type is: $i"
-            ICMP_SERVICES+=("$i")    
+            ICMP_SERVICES+="$i;"
         fi        
     done
 }
@@ -372,15 +372,9 @@ setDefaults()
 	echo "Setting up default values."
 	FIREWALL_PATH="./fw.sh"
  
-	TCP_SERVICES+="domain;"
-	TCP_SERVICES+="http;"
-	TCP_SERVICES+="https;"
-	TCP_SERVICES+="ssh"
-	UDP_SERVICES+="domain;"
-	UDP_SERVICES+="bootpc;"
-	UDP_SERVICES+="bootps"
-	ICMP_SERVICES+="0;"
-	ICMP_SERVICES+="8"
+	TCP_SERVICES="domain;http;https;ssh"
+	UDP_SERVICES="domain;bootpc;bootps"
+	ICMP_SERVICES="0;8"
 
 	INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
 	INTERNAL_DEVICE="enp3s2"

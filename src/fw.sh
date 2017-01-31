@@ -1,3 +1,5 @@
+set -x
+
 ###################################################################################################
 # Name: 
 #  Assignment_2_Firewall.sh
@@ -42,6 +44,25 @@ INTERNAL_GATEWAY_IP="10.0.4.1"
 INTERNAL_STATIC_IP='10.0.4.2'
 EXTERNAL_GATEWAY_IP="192.168.0.8"
 
+###################################################################################################
+# Name: 
+#  splitServices
+# Description:
+#  Split a semicolon-separated list of services into an array (store in the first argument).
+###################################################################################################
+splitServices()
+{
+    RESULT=()
+    IFS=';' read -ra SPLIT_LIST <<< "$1"
+    for i in "${SPLIT_LIST[@]}"; do
+        if [ "$i" -lt 0 ] || [ "$i" -gt 255 ]; then
+            echo "$i is not valid ICMP type. Type must be between 0 and 255 (inclusive)."
+        else
+            RESULT+="$i;"
+        fi
+    done
+    $1 = $RESULT
+}
 
 ###################################################################################################
 # Name: 
@@ -190,6 +211,11 @@ createFirewallRules()
 {
     iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
     # Loop through allowed services and set up rules to allow them for forwarding through the internal gateway
+
+    echo Number of TCP services: ${#TCP_SERVICES[@]}
+    echo Number of UDP services: ${#UDP_SERVICES[@]}
+    echo Number of ICMP services: ${#ICMP_SERVICES[@]}
+
     for i in "${TCP_SERVICES[@]}"; do
         echo "Adding rule for TCP service: $i"
         iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
@@ -233,6 +259,10 @@ resetRouting()
 
     ip link set $INTERNAL_DEVICE down
 }
+
+splitServices TCP_SERVICES
+splitServices UDP_SERVICES
+splitServices ICMP_SERVICES
 
 resetRouting
 setupRouting
