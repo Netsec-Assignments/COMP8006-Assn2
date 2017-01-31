@@ -485,7 +485,7 @@ displayMenu()
         Q............................  Quit
 
 MENU
-   echo -n '      Press  letter for choice, then Return > '
+   echo -n '      Press a Number for your choice, then Return > '
 }
 
 mainMenu
