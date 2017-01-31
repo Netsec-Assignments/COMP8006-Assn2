@@ -26,9 +26,13 @@ INTERNAL_DEVICE=""
 EXTERNAL_ADDRESS_SPACE=""
 EXTERNAL_DEVICE=""
 
+INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
+INTERNAL_STATIC_IP_MASKED='10.0.4.2/24'
+EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
 
-STATIC_IP="10.0.4.2/24"
-GATEWAY_IP="10.0.4.1/24"
+INTERNAL_GATEWAY_IP="10.0.4.1"
+INTERNAL_STATIC_IP='10.0.4.2'
+EXTERNAL_GATEWAY_IP="192.168.0.8"
 
 
 ###################################################################################################
@@ -334,7 +338,7 @@ setupRouting()
 {
     ethtool -s $INTERNAL_DEVICE mdix on
 
-    ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+    ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
     ip link set $INTERNAL_DEVICE up
 
     echo "1" >/proc/sys/net/ipv4/ip_forward
@@ -358,6 +362,7 @@ resetRouting()
     ip route delete $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
     ip route delete $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
 
+    ip addr delete $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
     ip link set $INTERNAL_DEVICE down
 }
 
