@@ -84,7 +84,7 @@ configureInternalAddressSpaceAndDevice()
 # Description:
 #  This function configures the external address space and device.
 ###################################################################################################
-configureExteranlAddressSpaceAndDevice()
+configureExternalAddressSpaceAndDevice()
 {
     echo 'Enter the external network address space'
     read addr_space rest
@@ -253,11 +253,11 @@ resetSettings()
 showCurrentSettings()
 {
     echo 'The current setings of the firewall.'
-	echo 'The Firewall path is: ${FIREWALL_PATH}'
- 	echo "The following TCP services are selected:"
-	for i in "${TCP_SERVICES[@]}"; do
-		echo '                                        %s\n' "$i"
-	done
+    echo "The Firewall path is: ${FIREWALL_PATH}"
+    echo "The following TCP services are selected:"
+    for i in "${TCP_SERVICES[@]}"; do
+        echo '                                        %s\n' "$i"
+    done
     echo "The following UDP services are selected:"
 	for i in "${UDP_SERVICES[@]}"; do
 		echo '                                        %s\n' "$i"
