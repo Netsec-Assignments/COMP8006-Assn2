@@ -25,6 +25,8 @@ INTERNAL_ADDRESS_SPACE=""
 INTERNAL_DEVICE=""
 EXTERNAL_ADDRESS_SPACE=""
 EXTERNAL_DEVICE=""
+
+
 STATIC_IP="10.0.4.2"
 GATEWAY_IP="10.0.4.1"
 
@@ -361,6 +363,17 @@ resetRouting()
 
 ###################################################################################################
 # Name: 
+#  setDefaults
+# Description:
+#  This function resets the machine's NIC cards.
+###################################################################################################
+setDefaults()
+{
+
+}
+
+###################################################################################################
+# Name: 
 #  mainMenu
 # Description:
 #  This function is the main menu of the program. It displays the
@@ -375,46 +388,49 @@ mainMenu()
 	displayMenu
 	read ltr rest
 	case ${ltr} in
-		[1])	configureFirewallLocation
+		1)		configureFirewallLocation
 				continueApplication
 				mainMenu;;
-		[2])	configureExternalAddressSpaceAndDevice
+		2)		configureExternalAddressSpaceAndDevice
         	    continueApplication
                 mainMenu;;
-		[3])    configureInternalAddressSpaceAndDevice
+		3)	    configureInternalAddressSpaceAndDevice
 		        continueApplication
 		        mainMenu;;
-		[4])	configureTCPServices
+		4)		configureTCPServices
 		        continueApplication
 		        mainMenu;;
-		[5])	configureUDPServices
+		5)		configureUDPServices
 		        continueApplication
 		        mainMenu;;
-		[6])	configureICMPServices
+		6)		configureICMPServices
 		        continueApplication
 		        mainMenu;;
-		[7])	showCurrentSettings
+		7)		showCurrentSettings
 				continueApplication
 		        mainMenu;;
-		[8])	startFirewall
+		8)		startFirewall
 				continueApplication
 		        mainMenu;;
-		[9])	resetSettings
+		9)		resetSettings
 				continueApplication
 		        mainMenu;;
-		[10])	disableFirewall
+		10)		disableFirewall
 				continueApplication
 		        mainMenu;;
-		[11])	enableRouting
+		11)		setupRouting
 				continueApplication
 		        mainMenu;;
-		[12])	resetRouting
+		12)		resetRouting
 				continueApplication
 		        mainMenu;;
-		[13])	internalMachineSetup
+		13)		internalMachineSetup
 				continueApplication
 		        mainMenu;;
-		[14])	resetMachine
+		14)		resetMachine
+				continueApplication
+		        mainMenu;;
+		15)		setDefaults
 				continueApplication
 		        mainMenu;;
 	    [Qq])	exit	;;
@@ -447,8 +463,8 @@ displayMenu()
         5............................  Configure UDP Services
         6............................  Configure ICMP Services
         7............................  Show Current Settings
-        8............................  Reset Settings
-        9............................  Start Firewall
+        8............................  Start Firewall
+        9............................  Reset Settings
         10...........................  Disable Firewall
         11...........................  Enable Routing
         12...........................  Disable Routing
