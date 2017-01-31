@@ -70,9 +70,7 @@ deleteFilters()
 resetFilters()
 {
 	echo 'Setting default policy to ALLOW for firewall'
-	iptables -P INPUT ACCEPT
 	iptables -P FORWARD ACCEPT
-	iptables -P OUTPUT ACCEPT
 }
 
 ###################################################################################################
@@ -84,9 +82,7 @@ resetFilters()
 setDefaultToDrop()
 {
 	echo 'Setting default policy to DROP for firewall'
-	iptables -P INPUT DROP
 	iptables -P FORWARD DROP
-	iptables -P OUTPUT DROP
 }
 
 ###################################################################################################
@@ -213,19 +209,38 @@ createFirewallRules()
 
 }
 
-# ethtool -s [interface] mdix on
+setupRouting()
+{
+    ethtool -s $INTERNAL_DEVICE mdix on
 
-ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
-ip link set $INTERNAL_DEVICE up
-echo "1" >/proc/sys/net/ipv4/ip_forward
-ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
-ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+    ip a add $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+    ip link set $INTERNAL_DEVICE up
+
+    echo "1" >/proc/sys/net/ipv4/ip_forward
+
+    ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
+    ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+}
+
+resetRouting()
+{
+    ethtool -s $INTERNAL_DEVICE mdix auto
+
+    echo "0" >/proc/sys/net/ipv4/ip_forward
+    
+    ip route delete $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
+    ip route delete $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+
+    ip link set $INTERNAL_DEVICE down
+}
+
+resetRouting
+setupRouting
 
 deleteFilters
 resetFilters
 setDefaultToDrop
 dropPortZeroTraffic
-
 dropInvalidTCPPacketsInbound			
-
+createFirewallRules
 
