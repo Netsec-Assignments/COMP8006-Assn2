@@ -40,15 +40,6 @@
 
 #!/bin/bash
 
-INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
-INTERNAL_STATIC_IP_MASKED='10.0.4.2/24'
-EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
-
-
-INTERNAL_GATEWAY_IP="10.0.4.1"
-INTERNAL_STATIC_IP='10.0.4.2'
-EXTERNAL_GATEWAY_IP="192.168.0.8"
-
 ###################################################################################################
 # Name: 
 #  splitServices
@@ -279,15 +270,16 @@ createFirewallRules()
 ###################################################################################################
 setupRouting()
 {
+	echo 'Setting up the firewall machine'
+
     ethtool -s $INTERNAL_DEVICE mdix on
 
-    ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
     ip link set $INTERNAL_DEVICE up
+    ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
 
     echo "1" >/proc/sys/net/ipv4/ip_forward
 
-    ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
-    ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
+	iptables -t nat -A 
 }
 
 ###################################################################################################

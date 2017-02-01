@@ -27,13 +27,12 @@ EXTERNAL_ADDRESS_SPACE=""
 EXTERNAL_DEVICE=""
 
 INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
-INTERNAL_STATIC_IP_MASKED='10.0.4.2/24'
+INTERNAL_STATIC_IP_MASKED='10.0.4.254/24'
 EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
 
 INTERNAL_GATEWAY_IP="10.0.4.1"
 INTERNAL_STATIC_IP='10.0.4.2'
 EXTERNAL_GATEWAY_IP="192.168.0.8"
-
 
 ###################################################################################################
 # Name: 
@@ -220,13 +219,60 @@ configureICMPServices()
 ###################################################################################################
 startFirewall()
 {
-    echo 'Starting the firewall'
     export INTERNAL_ADDRESS_SPACE INTERNAL_DEVICE EXTERNAL_ADDRESS_SPACE EXTERNAL_DEVICE TCP_SERVICES UDP_SERVICES ICMP_SERVICES
+	export INTERNAL_GATEWAY_IP_MASKED INTERNAL_STATIC_IP_MASKED EXTERNAL_GATEWAY_IP_MASKED INTERNAL_GATEWAY_IP INTERNAL_STATIC_IP EXTERNAL_GATEWAY_IP
+
     if ! [ -f ${FIREWALL_PATH} ]; then
         echo "No such file or directory ${FIREWALL_PATH}. Please enter a new location."
     fi
     chmod +x $FIREWALL_PATH
+
+	echo 'Setting up the firewall subnet routing'
+
+    ethtool -s $INTERNAL_DEVICE mdix on
+
+    ip link set $INTERNAL_DEVICE up
+    ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
+
+    echo "1" >/proc/sys/net/ipv4/ip_forward
+
+	iptables -t nat -A POSTROUTING -o $EXTERNAL_DEVICE -j MASQUERADE
+
+	if [ -f /etc/resolv.conf ]; then
+		mv /etc/resolv.conf /etc/resolv.conf.old
+	fi
+
+	echo nameserver 8.8.8.8 > /etc/resolv.conf	
+
+    echo 'Starting the firewall'
     sh $FIREWALL_PATH
+}
+
+###################################################################################################
+# Name: 
+#  disableFirewall
+# Description:
+#  This function disables the firewall.
+###################################################################################################
+disableFirewall()
+{
+    echo 'Disabling the firewall.'
+	iptables -F
+	iptables -t nat -F
+	iptables -X
+	iptables -P INPUT ACCEPT
+	iptables -P OUTPUT ACCEPT
+	iptables -P FORWARD ACCEPT
+
+    ethtool -s $INTERNAL_DEVICE mdix auto
+
+    echo "0" >/proc/sys/net/ipv4/ip_forward
+    
+    ip addr delete $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
+    ip link set $INTERNAL_DEVICE down
+
+	rm /etc/resolv.conf
+	mv /etc/resolv.conf.old /etc/resolv.conf
 }
 
 ###################################################################################################
@@ -284,22 +330,6 @@ showCurrentSettings()
 
 ###################################################################################################
 # Name: 
-#  disableFirewall
-# Description:
-#  This function disables the firewall.
-###################################################################################################
-disableFirewall()
-{
-    echo 'Disabling the firewall.'
-	iptables -F
-	iptables -X
-	iptables -P INPUT ACCEPT
-	iptables -P OUTPUT ACCEPT
-	iptables -P FORWARD ACCEPT
-}
-
-###################################################################################################
-# Name: 
 #  internalMachineSetup
 # Description:
 #  This function disables the NIC card.
@@ -308,10 +338,16 @@ internalMachineSetup()
 {
     echo 'Setting up the internal machine'
 
-	ip link set eno1 down
-	ip link set enp3s2 up
-	ip addr add $INTERNAL_STATIC_IP_MASKED dev enp3s2
+	ip link set dev $EXTERNAL_DEVICE down
+	ip link set dev $INTERNAL_DEVICE up
+	ip addr add $INTERNAL_STATIC_IP_MASKED dev $INTERNAL_DEVICE
 	ip route add default via $INTERNAL_GATEWAY_IP
+
+	if [ -f /etc/resolv.conf ]; then
+		mv /etc/resolv.conf /etc/resolv.conf.old
+	fi
+
+	echo nameserver 8.8.8.8 > /etc/resolv.conf
 }
 
 ###################################################################################################
@@ -324,8 +360,13 @@ resetMachine()
 {
     echo 'Resetting the machine.'
 
-	ip link set eno1 up
-	ip link set enp3s2 down
+	ip route delete default via $INTERNAL_GATEWAY_IP
+	ip addr delete $INTERNAL_STATIC_IP_MASKED dev $INTERNAL_DEVICE
+	ip link set dev $INTERNAL_DEVICE down
+	ip link set dev $EXTERNAL_DEVICE up
+
+	rm /etc/resolv.conf
+	mv /etc/resolv.conf.old /etc/resolv.conf
 }
 
 ###################################################################################################
