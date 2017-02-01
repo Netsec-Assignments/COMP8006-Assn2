@@ -427,19 +427,19 @@ mainMenu()
 		8)		startFirewall
 				continueApplication
 		        mainMenu;;
-		9)		resetSettings
+		9)		setupRouting
 				continueApplication
 		        mainMenu;;
-		10)		disableFirewall
+		10)		internalMachineSetup
 				continueApplication
 		        mainMenu;;
-		11)		setupRouting
+		11)		resetSettings
 				continueApplication
 		        mainMenu;;
-		12)		resetRouting
+		12)		disableFirewall
 				continueApplication
 		        mainMenu;;
-		13)		internalMachineSetup
+		13)		resetRouting
 				continueApplication
 		        mainMenu;;
 		14)		resetMachine
@@ -479,11 +479,11 @@ displayMenu()
         6............................  Configure ICMP Services
         7............................  Show Current Settings
         8............................  Start Firewall
-        9............................  Reset Settings
-        10...........................  Disable Firewall
-        11...........................  Enable Routing
-        12...........................  Disable Routing
-        13...........................  Enable the NIC 
+        9...........................   Enable Routing
+        10...........................  Enable the NIC 
+        11...........................  Reset Settings
+        12...........................  Disable Firewall
+        13...........................  Disable Routing
         14...........................  Reset the NIC on the machine
         15...........................  Set Defaults
 
