@@ -40,6 +40,12 @@
 
 #!/bin/bash
 
+# TOS: PPPDTRC0 (P = Precedence, D = Delay, T = Throughput, R = Reliability, C = Cost ($), 0 = Reserved
+
+MINIMUM_DELAY=8
+MAXIMUM_GOODPUT=4
+
+
 ###################################################################################################
 # Name: 
 #  splitServices
@@ -138,67 +144,25 @@ allowDNSAndDHCPTraffic()
 
 ###################################################################################################
 # Name: 
-#  permitInboundOutboundSSH
-# Description:
-#  This function permits inbound and outbound traffic on SSH
-###################################################################################################
-permitInboundOutboundSSH()
-{
-	echo 'Permit inbound and outbound traffic on SSH'
-	iptables -A INPUT -p tcp --dport 22 -m state --state NEW,ESTABLISHED,RELATED -j ssh-in
-	iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED,RELATED -j ssh-out
-	iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED,RELATED -j ssh-in
-	iptables -A OUTPUT -p tcp --dport 22 -m state --state NEW,ESTABLISHED,RELATED -j ssh-out
-}
-
-###################################################################################################
-# Name: 
-#  permitInboundOutboundWWW
-# Description:
-#  This function permits inbound and outbound traffic on WWW (Port 80)
-###################################################################################################
-permitInboundOutboundWWW()
-{
-	echo 'Permit inbound and outbound traffic on WWW (Port 80)'
-	iptables -A INPUT -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j www-in
-	iptables -A OUTPUT -p tcp --sport 80 -m state --state ESTABLISHED -j www-out
-	iptables -A INPUT -p tcp --sport 80 -m state --state ESTABLISHED -j www-in
-	iptables -A OUTPUT -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j www-out
-}
-
-###################################################################################################
-# Name: 
-#  permitInboundOutboundSSL
-# Description:
-#  This function permits inbound and outbound traffic on SSL (Port 443)
-###################################################################################################
-permitInboundOutboundSSL()
-{
-	echo 'Permit inbound and outbound traffic on SSL (Port 443)'
-	iptables -A INPUT -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j www-in
-	iptables -A OUTPUT -p tcp --sport 443 -m state --state ESTABLISHED -j www-out
-	iptables -A INPUT -p tcp --sport 443 -m state --state ESTABLISHED -j www-in
-	iptables -A OUTPUT -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j www-out
-}
-
-###################################################################################################
-# Name: 
 #  createDropTrafficRules
 # Description:
 #  This function drops invalid TCP Packets that are inbound
 ###################################################################################################
 createDropTrafficRules()
 {
+    iptables -A INPUT -j DROP
+
 	echo 'Drop invalid TCP Packets that are inbound'
-	iptables -A INPUT -p tcp --syn -j DROP
-	iptables -A INPUT -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
-	iptables -A INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
-	iptables -A INPUT -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
-	iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
-	iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+	iptables -A FORWARD -p tcp --syn -j DROP
+	iptables -A FORWARD -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
+	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
+	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
+	iptables -A FORWARD -p tcp --tcp-flags ALL ALL -j DROP
+	iptables -A FORWARD -p tcp --tcp-flags ALL NONE -j DROP
 
 	echo 'Drop telnet in and out'
 	iptables -A FORWARD -p tcp --sport 23 -j DROP	
+	iptables -A FORWARD -p tcp --dport 23 -j DROP	
 
 	echo 'Drop traffic to 32768-32775'
 	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 32768:32775 -j DROP
@@ -212,14 +176,14 @@ createDropTrafficRules()
 	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 111,515 -j DROP
 
 	echo 'Drop all network activity that appears to be from the internal network'
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j DROP
+	iptables -A FORWARD -i $EXTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -j DROP
 
 	echo 'Drop any SYN targeting high port coming the wrong way'
 	iptables -A FORWARD -p tcp --syn -m multiport --dports 1025:65535 -j DROP
 
-	echo 'Drop service to service traffic.'
-	iptables -A FORWARD -p tcp --sport 0:1024 --dport 0:1024 -j DROP
-	iptables -A FORWARD -p udp --sport 0:1024 --dport 0:1024 -j DROP
+	#echo 'Drop service to service traffic.'
+	#iptables -A FORWARD -p tcp --sport 0:1024 --dport 0:1024 -j DROP
+	#iptables -A FORWARD -p udp --sport 0:1024 --dport 0:1024 -j DROP
 
 }
 
@@ -231,35 +195,41 @@ createDropTrafficRules()
 ###################################################################################################
 createFirewallRules()
 {
-    iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
+    #iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
     # Loop through allowed services and set up rules to allow them for forwarding through the internal gateway
+
+    # Allow DNS traffic
+    iptables -A FORWARD -p tcp --dport domain -j ACCEPT
+    iptables -A FORWARD -p tcp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    iptables -A FORWARD -p udp --dport domain -j ACCEPT
+    iptables -A FORWARD -p udp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 
 
     for i in "${TCP_SERVICES[@]}"; do
         echo "Adding rule for TCP service: $i"
-        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
+        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
     done
 
 	#drop TCP rules not declared by user.
-	iptables -A tcp -j DROP 
-
+    #iptables -A tcp -j DROP
 
     for i in "${UDP_SERVICES[@]}"; do
         echo "Adding rule for UDP service: $i"
-        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -j ACCEPT
+        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p udp $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
     done
 
 	#drop UDP rules not declared by user.
-	iptables -A udp -j DROP 
-
+	#iptables -A udp -j DROP
 
     for i in "${ICMP_SERVICES[@]}"; do
         echo "Adding rule for ICMP type: $i"
         iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
         iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
     done
-	#drop ICMP rules not declared by user.
-	iptables -A icmp -j DROP 
 
+	#drop ICMP rules not declared by user.
+    #iptables -A icmp -j DROP
 }
 
 ###################################################################################################
@@ -301,6 +271,24 @@ resetRouting()
     ip link set $INTERNAL_DEVICE down
 }
 
+###################################################################################################
+# Name: 
+#  setupMangle
+# Description:
+#  This function setups the mangle tables.
+###################################################################################################
+setupMangle()
+{
+	echo 'Setting up the mangle tables'
+
+	iptables -t mangle -A PREROUTING -p tcp -dport ssh $EXTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
+	iptables -t mangle -A PREROUTING -p tcp -sport ssh $INTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
+
+    iptables -t mangle -A PREROUTING -p tcp -dport ftp $EXTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
+	iptables -t mangle -A PREROUTING -p tcp -sport ftp $INTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
+}
+
+
 splitServices $TCP_SERVICES
 TCP_SERVICES=(${RESULT[@]})
 
@@ -315,6 +303,7 @@ setupRouting
 
 deleteFilters
 resetFilters
+setupMangle
 setDefaultToDrop
 dropPortZeroTraffic
 createDropTrafficRules			

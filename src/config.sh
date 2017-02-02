@@ -257,8 +257,10 @@ startFirewall()
 disableFirewall()
 {
     echo 'Disabling the firewall.'
-	iptables -F
 	iptables -t nat -F
+    iptables -t mangle -F
+
+	iptables -F
 	iptables -X
 	iptables -P INPUT ACCEPT
 	iptables -P OUTPUT ACCEPT
