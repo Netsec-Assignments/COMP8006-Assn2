@@ -26,13 +26,13 @@ INTERNAL_DEVICE=""
 EXTERNAL_ADDRESS_SPACE=""
 EXTERNAL_DEVICE=""
 
-INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
-INTERNAL_STATIC_IP_MASKED='10.0.4.254/24'
-EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
+INTERNAL_GATEWAY_IP_MASKED=""
+INTERNAL_STATIC_IP_MASKED=''
+EXTERNAL_GATEWAY_IP_MASKED=""
 
-INTERNAL_GATEWAY_IP="10.0.4.1"
-INTERNAL_STATIC_IP='10.0.4.2'
-EXTERNAL_GATEWAY_IP="192.168.0.8"
+INTERNAL_GATEWAY_IP=""
+INTERNAL_STATIC_IP=''
+EXTERNAL_GATEWAY_IP=""
 
 ###################################################################################################
 # Name: 
@@ -65,7 +65,7 @@ configureFirewallLocation()
 
 ###################################################################################################
 # Name: 
-#  configureInteranlAddressSpaceAndDevice
+#  configureInternalAddressSpaceAndDevice
 # Description:
 #  This function configures the internal address space and device.
 ###################################################################################################
@@ -88,7 +88,7 @@ configureInternalAddressSpaceAndDevice()
 
 ###################################################################################################
 # Name: 
-#  configureInteranlAddressSpaceAndDevice
+#  configureExternalAddressSpaceAndDevice
 # Description:
 #  This function configures the external address space and device.
 ###################################################################################################
@@ -326,6 +326,12 @@ showCurrentSettings()
     echo "The Internal Device is: ${INTERNAL_DEVICE}"
     echo "The External Address Space is: ${EXTERNAL_ADDRESS_SPACE}"
     echo "The External Device is: ${EXTERNAL_DEVICE}"
+	echo "The Internal Masked Gateway IP is: ${INTERNAL_GATEWAY_IP_MASKED}"
+    echo "The Internal Masked Static IP is: ${INTERNAL_STATIC_IP_MASKED}"
+    echo "The External Masked Gateway IP is: ${EXTERNAL_GATEWAY_IP_MASKED}"
+    echo "The Internal Gateway IP is: ${INTERNAL_GATEWAY_IP}"
+	echo "The Internal Static IP is: ${INTERNAL_STATIC_IP}"
+    echo "The External Gateway IP is: ${EXTERNAL_GATEWAY_IP}"
 }
 
 ###################################################################################################
@@ -426,6 +432,66 @@ setDefaults()
 	INTERNAL_DEVICE="enp3s2"
 	EXTERNAL_ADDRESS_SPACE="192.168.0.0/24"
 	EXTERNAL_DEVICE="eno1"
+
+	INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
+	INTERNAL_STATIC_IP_MASKED='10.0.4.254/24'
+	EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
+
+	INTERNAL_GATEWAY_IP="10.0.4.1"
+	INTERNAL_STATIC_IP='10.0.4.2'
+	EXTERNAL_GATEWAY_IP="192.168.0.8"
+}
+
+###################################################################################################
+# Name: 
+#  configureGateway
+# Description:
+#  This function configures the internal and external masked/unmasked gateways/static IPs.
+###################################################################################################
+configureGateway()
+{
+    echo 'Enter the Masked Internal Gateway IP'
+    read int_masked_gateway rest
+    INTERNAL_GATEWAY_IP_MASKED=${int_masked_gateway}
+    if [ -z ${INTERNAL_GATEWAY_IP_MASKED} ]; then
+        echo "Please enter a valid Masked Internal Gateway IP."
+    fi
+
+	echo 'Enter the Masked Internal Static IP'
+    read int_masked_static rest
+    INTERNAL_STATIC_IP_MASKED=${int_masked_static}
+    if [ -z ${INTERNAL_STATIC_IP_MASKED} ]; then
+        echo "Please enter a valid Masked Internal Static IP."
+    fi
+
+	echo 'Enter the Masked External Gateway IP'
+    read ext__masked_gateway rest
+    EXTERNAL_GATEWAY_IP_MASKED=${ext__masked_gateway}
+    if [ -z ${EXTERNAL_GATEWAY_IP_MASKED} ]; then
+        echo "Please enter a valid Masked Internal Gateway IP."
+    fi
+
+	echo 'Enter the Internal Gateway IP'
+    read int_gateway rest
+    INTERNAL_GATEWAY_IP=${int_gateway}
+    if [ -z ${INTERNAL_GATEWAY_IP} ]; then
+        echo "Please enter a valid Internal Gateway IP."
+    fi
+
+	echo 'Enter the Internal Static IP'
+    read int_static rest
+    INTERNAL_STATIC_IP=${int_static}
+    if [ -z ${INTERNAL_STATIC_IP} ]; then
+        echo "Please enter a valid Internal Static IP."
+    fi
+
+	echo 'Enter the External Gateway IP'
+    read ext_gateway rest
+    EXTERNAL_GATEWAY_IP=${ext_gateway}
+    if [ -z ${EXTERNAL_GATEWAY_IP} ]; then
+        echo "Please enter a valid External Gateway IP."
+    fi
+
 }
 
 ###################################################################################################
@@ -462,31 +528,34 @@ mainMenu()
 		6)		configureICMPServices
 		        continueApplication
 		        mainMenu;;
-		7)		showCurrentSettings
+		7)		configureGateway
 				continueApplication
 		        mainMenu;;
-		8)		startFirewall
+		8)		showCurrentSettings
 				continueApplication
 		        mainMenu;;
-		9)		setupRouting
+		9)		startFirewall
 				continueApplication
 		        mainMenu;;
-		10)		internalMachineSetup
+		10)		setupRouting
 				continueApplication
 		        mainMenu;;
-		11)		resetSettings
+		11)		internalMachineSetup
 				continueApplication
 		        mainMenu;;
-		12)		disableFirewall
+		12)		resetSettings
 				continueApplication
 		        mainMenu;;
-		13)		resetRouting
+		13)		disableFirewall
 				continueApplication
 		        mainMenu;;
-		14)		resetMachine
+		14)		resetRouting
 				continueApplication
 		        mainMenu;;
-		15)		setDefaults
+		15)		resetMachine
+				continueApplication
+		        mainMenu;;
+		16)		setDefaults
 				continueApplication
 		        mainMenu;;
 	    [Qq])	exit	;;
@@ -509,26 +578,27 @@ mainMenu()
 displayMenu()
 {
     cat << 'MENU'
-        Welcome to Assignment #2: Standalone Firewall
-        By Mat Siwoski & Shane Spoor
+		Welcome to Assignment #2: Standalone Firewall
+		By Mat Siwoski & Shane Spoor
         
-        1............................  Specify Firewall Script Location/Name
-        2............................  Customise External Address Space and Device
-        3............................  Customise Internal Address Space and Device      
-        4............................  Configure TCP Services
-        5............................  Configure UDP Services
-        6............................  Configure ICMP Services
-        7............................  Show Current Settings
-        8............................  Start Firewall
-        9...........................   Enable Routing
-        10...........................  Enable the NIC 
-        11...........................  Reset Settings
-        12...........................  Disable Firewall
-        13...........................  Disable Routing
-        14...........................  Reset the NIC on the machine
-        15...........................  Set Defaults
+		1............................  Specify Firewall Script Location/Name
+		2............................  Customise External Address Space and Device
+		3............................  Customise Internal Address Space and Device      
+		4............................  Configure TCP Services
+		5............................  Configure UDP Services
+		6............................  Configure ICMP Services
+		7............................  Configure the Gateway
+		8............................  Show Current Settings
+		9............................  Start Firewall
+		10..........................   Enable Routing
+		11...........................  Enable the NIC 
+		12...........................  Reset Settings
+		13...........................  Disable Firewall
+		14...........................  Disable Routing
+		15...........................  Reset the NIC on the machine
+		16...........................  Set Defaults
 
-        Q............................  Quit
+		Q............................  Quit
 
 MENU
    echo -n '      Press a Number for your choice, then Return > '
