@@ -20,6 +20,7 @@ FIREWALL_PATH=""
 TCP_SERVICES=""
 UDP_SERVICES=""
 ICMP_SERVICES=""
+TCP_SERVICES_IN=""
 
 INTERNAL_ADDRESS_SPACE=""
 INTERNAL_DEVICE=""
@@ -117,7 +118,7 @@ configureExternalAddressSpaceAndDevice()
 ###################################################################################################
 configureTCPServices()
 {
-    echo 'Enter a semicolon-separated list of allowed TCP services.'
+    echo 'Enter a semicolon-separated list of allowed OUTBOUND TCP services.'
     read LIST REST
     IFS=';' read -ra SPLIT_LIST <<< "$LIST"
     for i in "${SPLIT_LIST[@]}"; do
@@ -127,6 +128,19 @@ configureTCPServices()
             echo "No such service $i for TCP. Please enter a valid service name or port number."
         else
             TCP_SERVICES+="$i;"
+        fi
+    done
+
+    echo 'Enter a semicolon-separated list of allowed INBOUND TCP services.'
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        SERVICE=`getent services $i/tcp`
+        echo "SERVICE is: $SERVICE"
+        if [ -z "$SERVICE" ]; then
+            echo "No such service $i for TCP. Please enter a valid service name or port number."
+        else
+            TCP_SERVICES_IN+="$i;"
         fi
     done
 }
@@ -219,7 +233,7 @@ configureICMPServices()
 ###################################################################################################
 startFirewall()
 {
-    export INTERNAL_ADDRESS_SPACE INTERNAL_DEVICE EXTERNAL_ADDRESS_SPACE EXTERNAL_DEVICE TCP_SERVICES UDP_SERVICES ICMP_SERVICES
+    export INTERNAL_ADDRESS_SPACE INTERNAL_DEVICE EXTERNAL_ADDRESS_SPACE EXTERNAL_DEVICE TCP_SERVICES TCP_SERVICES_IN UDP_SERVICES ICMP_SERVICES 
 	export INTERNAL_GATEWAY_IP_MASKED INTERNAL_STATIC_IP_MASKED EXTERNAL_GATEWAY_IP_MASKED INTERNAL_GATEWAY_IP INTERNAL_STATIC_IP EXTERNAL_GATEWAY_IP
 
     if ! [ -f ${FIREWALL_PATH} ]; then
@@ -293,6 +307,7 @@ resetSettings()
 	TCP_SERVICES=()
 	UDP_SERVICES=()
 	ICMP_SERVICES=()
+    TCP_SERVICES_IN=()
 
 	INTERNAL_ADDRESS_SPACE=""
 	INTERNAL_DEVICE=""

@@ -204,8 +204,14 @@ createFirewallRules()
     iptables -A FORWARD -p udp --dport domain -j ACCEPT
     iptables -A FORWARD -p udp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 
 
+    for i in "${TCP_SERVICES_IN[@]}"; do
+        echo "Adding rule for TCP INBOUND service: $i"
+        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
+    done
+
     for i in "${TCP_SERVICES[@]}"; do
-        echo "Adding rule for TCP service: $i"
+        echo "Adding rule for TCP OUTBOUND service: $i"
         iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
         iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
     done
