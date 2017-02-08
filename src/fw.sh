@@ -153,7 +153,6 @@ createDropTrafficRules()
     iptables -A INPUT -j DROP
 
 	echo 'Drop invalid TCP Packets that are inbound'
-	iptables -A FORWARD -p tcp --syn -j DROP
 	iptables -A FORWARD -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
 	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
 	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
@@ -175,8 +174,8 @@ createDropTrafficRules()
 	echo 'Drop traffic to 111 & 515'
 	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 111,515 -j DROP
 
-	echo 'Drop all network activity that appears to be from the internal network'
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -j DROP
+	#echo 'Drop all network activity that appears to be from the internal network'
+	#iptables -A FORWARD -i $EXTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -j DROP
 
 	echo 'Drop any SYN targeting high port coming the wrong way'
 	iptables -A FORWARD -p tcp --syn -m multiport --dports 1025:65535 -j DROP
@@ -195,43 +194,76 @@ createDropTrafficRules()
 ###################################################################################################
 createFirewallRules()
 {
+    iptables -P FORWARD DROP
     #iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -j ACCEPT
     # Loop through allowed services and set up rules to allow them for forwarding through the internal gateway
 
     # Allow DNS traffic
+    iptables -t nat -A PREROUTING -p tcp --sport domain -j DNAT --to-destination $INTERNAL_STATIC_IP
+    iptables -t nat -A PREROUTING -p udp --sport domain -j DNAT --to-destination $INTERNAL_STATIC_IP
     iptables -A FORWARD -p tcp --dport domain -j ACCEPT
     iptables -A FORWARD -p tcp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     iptables -A FORWARD -p udp --dport domain -j ACCEPT
     iptables -A FORWARD -p udp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 
 
-    for i in "${TCP_SERVICES_IN[@]}"; do
+    # Set up chains for accounting and testing
+    iptables -N tcp-in
+    iptables -N tcp-out
+    iptables -A FORWARD -p tcp -i $EXTERNAL_DEVICE -j tcp-in
+    iptables -A FORWARD -p tcp -i $INTERNAL_DEVICE -j tcp-out
+
+    iptables -N udp-in
+    iptables -N udp-out
+    iptables -A FORWARD -p udp -i $EXTERNAL_DEVICE -j udp-in
+    iptables -A FORWARD -p udp -i $INTERNAL_DEVICE -j udp-out
+
+    iptables -N icmp-in
+    iptables -N icmp-out
+    iptables -A FORWARD -p icmp -i $EXTERNAL_DEVICE -j icmp-in
+    iptables -A FORWARD -p icmp -i $INTERNAL_DEVICE -j icmp-out   
+
+    for i in "${TCP_SVC_IN[@]}"; do
         echo "Adding rule for TCP INBOUND service: $i"
-        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
-        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -j ACCEPT
+        # Set up port forwarding, allow inbound connections on given ports, and allow outbound traffic from the server
+        iptables -t nat -A PREROUTING -i $EXTERNAL_DEVICE -p tcp --dport $i -j DNAT --to-destination $INTERNAL_STATIC_IP
+        iptables -A tcp-in -d $INTERNAL_STATIC_IP -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+        iptables -A tcp-out -s $INTERNAL_STATIC_IP -p tcp --sport $i -j ACCEPT
     done
 
-    for i in "${TCP_SERVICES[@]}"; do
+    for i in "${TCP_SVC_OUT[@]}"; do
         echo "Adding rule for TCP OUTBOUND service: $i"
-        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+        iptables -A tcp-in -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p tcp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A tcp-out -s $INTERNAL_ADDRESS_SPACE -p tcp --dport $i -j ACCEPT
     done
 
 	#drop TCP rules not declared by user.
     #iptables -A tcp -j DROP
 
-    for i in "${UDP_SERVICES[@]}"; do
-        echo "Adding rule for UDP service: $i"
-        iptables -A FORWARD -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-        iptables -A FORWARD -s $INTERNAL_ADDRESS_SPACE -p udp $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+    for i in "${UDP_SVC_IN[@]}"; do
+        echo "Adding rule for UDP INBOUND service: $i"
+        iptables -t nat -A PREROUTING -p udp -i $EXTERNAL_DEVICE --dport $i -j DNAT --to-destination $INTERNAL_STATIC_IP:$i
+        iptables -A udp-in -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --dport $i -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+        iptables -A udp-out -s $INTERNAL_STATIC_IP -p udp --sport $i -j ACCEPT
+    done
+
+    for i in "${UDP_SVC_OUT[@]}"; do
+        echo "Adding rule for UDP OUTBOUND service: $i"
+        iptables -A udp-in -o $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p udp --sport $i -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A udp-out -s $INTERNAL_ADDRESS_SPACE -p udp --dport $i -j ACCEPT
     done
 
 	#drop UDP rules not declared by user.
 	#iptables -A udp -j DROP
 
-    for i in "${ICMP_SERVICES[@]}"; do
-        echo "Adding rule for ICMP type: $i"
-        iptables -A FORWARD -i $INTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
-        iptables -A FORWARD -i $INTERNAL_DEVICE -s $INTERNAL_ADDRESS_SPACE -p icmp --icmp-type $i -j ACCEPT
+    for i in "${ICMP_SVC_IN[@]}"; do
+        echo "Addin rule for ICMP INBOUND type: $i"
+        iptables -t nat -A PREROUTING -p icmp -i $EXTERNAL_DEVICE --icmp-type $i -j DNAT --to-destination $INTERNAL_STATIC_IP
+        iptables -A icmp-in -o $INTERNAL_DEVICE -p icmp --icmp-type $i -j ACCEPT
+    done
+
+    for i in "${ICMP_SVC_OUT[@]}"; do
+        echo "Adding rule for ICMP OUTBOUND type: $i"
+        iptables -A icmp-out -o $INTERNAL_DEVICE -p icmp --icmp-type $i -j ACCEPT
     done
 
 	#drop ICMP rules not declared by user.
@@ -254,8 +286,6 @@ setupRouting()
     ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
 
     echo "1" >/proc/sys/net/ipv4/ip_forward
-
-	iptables -t nat -A 
 }
 
 ###################################################################################################
@@ -287,25 +317,31 @@ setupMangle()
 {
 	echo 'Setting up the mangle tables'
 
-	iptables -t mangle -A PREROUTING -p tcp -dport ssh $EXTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
-	iptables -t mangle -A PREROUTING -p tcp -sport ssh $INTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
+	iptables -t mangle -A PREROUTING -p tcp --dport ssh -i $EXTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
+	iptables -t mangle -A PREROUTING -p tcp --sport ssh -o $INTERNAL_DEVICE -j TOS --set-tos $MINIMUM_DELAY
 
-    iptables -t mangle -A PREROUTING -p tcp -dport ftp $EXTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
-	iptables -t mangle -A PREROUTING -p tcp -sport ftp $INTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
+    iptables -t mangle -A PREROUTING -p tcp --dport ftp -i $EXTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
+	iptables -t mangle -A PREROUTING -p tcp --sport ftp -o $INTERNAL_DEVICE -j TOS --set-tos $MAXIMUM_GOODPUT
 }
 
 
-splitServices $TCP_SERVICES
-TCP_SERVICES=(${RESULT[@]})
+splitServices $TCP_SVC_IN
+TCP_SVC_IN=(${RESULT[@]})
+splitServices $TCP_SVC_OUT
+TCP_SVC_OUT=(${RESULT[@]})
 
-splitServices $UDP_SERVICES
-UDP_SERVICES=(${RESULT[@]})
+splitServices $UDP_SVC_IN
+UDP_SVC_IN=(${RESULT[@]})
+splitServices $UDP_SVC_OUT
+UDP_SVC_OUT=(${RESULT[@]})
 
-splitServices $ICMP_SERVICES
-ICMP_SERVICES=(${RESULT[@]})
+splitServices $ICMP_SVC_IN
+ICMP_SVC_IN=(${RESULT[@]})
+splitServices $ICMP_SVC_OUT
+ICMP_SVC_OUT=(${RESULT[@]})
 
-resetRouting
-setupRouting
+#resetRouting
+#setupRouting
 
 deleteFilters
 resetFilters

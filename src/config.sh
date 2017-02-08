@@ -17,10 +17,14 @@
 FIREWALL_PATH=""
 
 # Service configuration
-TCP_SERVICES=""
-UDP_SERVICES=""
-ICMP_SERVICES=""
-TCP_SERVICES_IN=""
+TCP_SVC_OUT=""
+TCP_SVC_IN=""
+
+UDP_SVC_OUT=""
+UDP_SVC_IN=""
+
+ICMP_SVC_OUT=""
+ICMP_SVC_IN=""
 
 INTERNAL_ADDRESS_SPACE=""
 INTERNAL_DEVICE=""
@@ -123,11 +127,11 @@ configureTCPServices()
     IFS=';' read -ra SPLIT_LIST <<< "$LIST"
     for i in "${SPLIT_LIST[@]}"; do
         SERVICE=`getent services $i/tcp`
-        echo "SERVICE is: $SERVICE"
         if [ -z "$SERVICE" ]; then
             echo "No such service $i for TCP. Please enter a valid service name or port number."
         else
-            TCP_SERVICES+="$i;"
+            TCP_SVC_OUT+="$i;"
+            echo "TCP service $SERVICE added to allowed outbound traffic."
         fi
     done
 
@@ -136,11 +140,11 @@ configureTCPServices()
     IFS=';' read -ra SPLIT_LIST <<< "$LIST"
     for i in "${SPLIT_LIST[@]}"; do
         SERVICE=`getent services $i/tcp`
-        echo "SERVICE is: $SERVICE"
         if [ -z "$SERVICE" ]; then
             echo "No such service $i for TCP. Please enter a valid service name or port number."
         else
-            TCP_SERVICES_IN+="$i;"
+            TCP_SVC_IN+="$i;"
+            echo "TCP service $SERVICE added to allowed inbound traffic."
         fi
     done
 }
@@ -158,11 +162,24 @@ configureUDPServices()
     IFS=';' read -ra SPLIT_LIST <<< "$LIST"
     for i in "${SPLIT_LIST[@]}"; do
         SERVICE=`getent services $i/udp`
-        echo "SERVICE is: $SERVICE"
         if [ -z "$SERVICE" ]; then
             echo "No such service $i for UDP. Please enter a valid service name or port number."
         else
-            UDP_SERVICES+="$i;"
+            UDP_SVC_OUT+="$i;"
+            echo "UDP service $SERVICE added to allowed outbound traffic."
+        fi
+    done
+
+    echo 'Enter a semicolon-separated list of allowed INBOUND UDP services.'
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        SERVICE=`getent services $i/udp`
+        if [ -z "$SERVICE" ]; then
+            echo "No such service $i for UDP. Please enter a valid service name or port number."
+        else
+            UDP_SVC_IN+="$i;"
+            echo "UDP service $SERVICE added to allowed inbound traffic."
         fi
     done
 }
@@ -175,7 +192,7 @@ configureUDPServices()
 ###################################################################################################
 configureICMPServices()
 {
-    echo 'Enter a semicolon-separated list of allowed ICMP services (by type; see below).'
+    echo 'Enter a semicolon-separated list of allowed OUTBOUND ICMP services (by type; see below).'
     echo '
     Type    Name					
     ----	-------------------------
@@ -219,10 +236,49 @@ configureICMPServices()
         if [ "$i" -lt 0 ] || [ "$i" -gt 255 ]; then
             echo "$i is not valid ICMP type. Type must be between 0 and 255 (inclusive)."
         else
-            echo "Type is: $i"
-            ICMP_SERVICES+="$i;"
+            ICMP_SVC_OUT+="$i;"
+            echo "Type $i added to allowed outbound traffic."
         fi        
     done
+
+    echo 'Enter a semicolon-separated list of allowed INBOUND ICMP services (by type; see above).'
+    read LIST REST
+    IFS=';' read -ra SPLIT_LIST <<< "$LIST"
+    for i in "${SPLIT_LIST[@]}"; do
+        if [ "$i" -lt 0 ] || [ "$i" -gt 255 ]; then
+            echo "$i is not valid ICMP type. Type must be between 0 and 255 (inclusive)."
+        else
+            ICMP_SVC_INT+="$i;"
+            echo "Type $i added to allowed inbound traffic."
+        fi        
+    done
+}
+
+###################################################################################################
+# Name: 
+#  exportConfig
+# Description:
+#  Exports the configuration variables for use by sub-shells.
+###################################################################################################
+exportConfig()
+{
+    export INTERNAL_ADDRESS_SPACE
+    export EXTERNAL_ADDRESS_SPACE
+    export INTERNAL_DEVICE
+    export EXTERNAL_DEVICE
+    export INTERNAL_GATEWAY_IP_MASKED
+    export EXTERNAL_GATEWAY_IP_MASKED
+    export INTERNAL_STATIC_IP_MASKED
+    export INTERNAL_GATEWAY_IP
+    export EXTERNAL_GATEWAY_IP
+    export INTERNAL_STATIC_IP
+
+    export TCP_SVC_OUT
+    export UDP_SVC_OUT
+    export ICMP_SVC_OUT
+    export TCP_SVC_IN
+    export UDP_SVC_IN
+    export ICMP_SVC_IN
 }
 
 ###################################################################################################
@@ -233,8 +289,7 @@ configureICMPServices()
 ###################################################################################################
 startFirewall()
 {
-    export INTERNAL_ADDRESS_SPACE INTERNAL_DEVICE EXTERNAL_ADDRESS_SPACE EXTERNAL_DEVICE TCP_SERVICES TCP_SERVICES_IN UDP_SERVICES ICMP_SERVICES 
-	export INTERNAL_GATEWAY_IP_MASKED INTERNAL_STATIC_IP_MASKED EXTERNAL_GATEWAY_IP_MASKED INTERNAL_GATEWAY_IP INTERNAL_STATIC_IP EXTERNAL_GATEWAY_IP
+    exportConfig
 
     if ! [ -f ${FIREWALL_PATH} ]; then
         echo "No such file or directory ${FIREWALL_PATH}. Please enter a new location."
@@ -304,10 +359,10 @@ resetSettings()
 	FIREWALL_PATH=""
 
 	# Service configuration
-	TCP_SERVICES=()
-	UDP_SERVICES=()
-	ICMP_SERVICES=()
-    TCP_SERVICES_IN=()
+	TCP_SVC_OUT=()
+	UDP_SVC_OUT=()
+	ICMP_SVC_OUT=()
+    TCP_SVC_IN=()
 
 	INTERNAL_ADDRESS_SPACE=""
 	INTERNAL_DEVICE=""
@@ -328,15 +383,15 @@ showCurrentSettings()
     echo 'The current setings of the firewall.'
     echo "The Firewall path is: ${FIREWALL_PATH}"
     echo "The following TCP services are selected:"
-    for i in "${TCP_SERVICES[@]}"; do
+    for i in "${TCP_SVC_OUT[@]}"; do
         echo '                                            ' "$i"
     done
     echo "The following UDP services are selected:"
-	for i in "${UDP_SERVICES[@]}"; do
+	for i in "${UDP_SVC_OUT[@]}"; do
 		echo '                                            ' "$i"
 	done
  	echo "The following ICMP services are selected:"
-	for i in "${ICMP_SERVICES[@]}"; do
+	for i in "${ICMP_SVC_OUT[@]}"; do
 		echo '                                            ' "$i"
 	done    
     echo "The Internal Address Space is: ${INTERNAL_ADDRESS_SPACE}"
@@ -441,9 +496,10 @@ setDefaults()
 	echo "Setting up default values."
 	FIREWALL_PATH="./fw.sh"
  
-	TCP_SERVICES="domain;http;https;ssh"
-	UDP_SERVICES="domain;bootpc;bootps"
-	ICMP_SERVICES="0;8"
+	TCP_SVC_OUT="domain;http;https;ssh"
+    TCP_SVC_IN="ssh"
+	UDP_SVC_OUT="domain;bootpc;bootps"
+	ICMP_SVC_OUT="0;8"
 
 	INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
 	INTERNAL_DEVICE="enp3s2"
@@ -473,6 +529,7 @@ configureGateway()
     if [ -z ${INTERNAL_GATEWAY_IP_MASKED} ]; then
         echo "Please enter a valid Masked Internal Gateway IP."
     fi
+    INTERNAL_GATEWAY_IP=$(echo $INTERNAL_GATEWAY_IP_MASKED | cut -d'/' -f 1)
 
 	echo 'Enter the Masked Internal Static IP'
     read int_masked_static rest
@@ -480,6 +537,7 @@ configureGateway()
     if [ -z ${INTERNAL_STATIC_IP_MASKED} ]; then
         echo "Please enter a valid Masked Internal Static IP."
     fi
+    INTERNAL_STATIC_IP=$(echo $INTERNAL_STATIC_IP_MASKED | cut -d'/' -f 1)
 
 	echo 'Enter the Masked External Gateway IP'
     read ext__masked_gateway rest
@@ -487,28 +545,110 @@ configureGateway()
     if [ -z ${EXTERNAL_GATEWAY_IP_MASKED} ]; then
         echo "Please enter a valid Masked Internal Gateway IP."
     fi
+    EXTERNAL_GATEWAY_IP=$(echo $EXTERNAL_GATEWAY_IP_MASKED | cut -d'/' -f 1)
+}
 
-	echo 'Enter the Internal Gateway IP'
-    read int_gateway rest
-    INTERNAL_GATEWAY_IP=${int_gateway}
-    if [ -z ${INTERNAL_GATEWAY_IP} ]; then
-        echo "Please enter a valid Internal Gateway IP."
+###################################################################################################
+# Name: 
+#  splitServices
+# Description:
+#  Split a semicolon-separated list of services into an array. Unfortunately this code was
+#  duplicated.
+###################################################################################################
+splitServices()
+{
+    RESULT=()
+    IFS=';' read -ra SPLIT_LIST <<< "$1"
+    for i in "${SPLIT_LIST[@]}"; do
+        RESULT+=("$i")
+    done
+}
+
+writeTest()
+{
+    SCRIPT_FILE=$1
+    EXIT_PASS=$2
+    TEST_NAME=$3
+
+    echo "if [ \$? == $EXIT_PASS ]; then" >> $SCRIPT_FILE
+    echo "    echo '$TEST_NAME: passed'"  >> $SCRIPT_FILE
+    echo "else"                           >> $SCRIPT_FILE
+    echo "    echo '$TEST_NAME: failed'"  >> $SCRIPT_FILE
+    echo "fi"                             >> $SCRIPT_FILE
+    echo ''                               >> $SCRIPT_FILE
+}
+
+###################################################################################################
+# Name: 
+#  createTestScripts
+# Description:
+#  This function creates test scripts based on the current configuration.
+###################################################################################################
+createTestScripts()
+{
+    echo "Enter the test device's IP address."
+    read TEST_ADDR REST
+    echo "Generating tests using test device IP $TEST_ADDR, internal IP $INTERNAL_ADDRESS, firewall IP $EXTERNAL_ADDRESS."
+
+    HPING_PROGRAM=''
+    if [ "$#" == 2 ]; then
+        HPING_PROGRAM=$2
+    else
+        HPING_PROGRAM='hping3'
     fi
 
-	echo 'Enter the Internal Static IP'
-    read int_static rest
-    INTERNAL_STATIC_IP=${int_static}
-    if [ -z ${INTERNAL_STATIC_IP} ]; then
-        echo "Please enter a valid Internal Static IP."
+    if [ -f ./external_tests.sh ]; then
+        echo "Overwriting external_tests.sh. Run these tests from a machine in address space $EXTERNAL_ADDRESS_SPACE."
+        rm -f ./external_tests.sh
+    else
+        echo "Creating external_tests.sh. Run these tests from a machine in address space $EXTERNAL_ADDRESS_SPACE."
     fi
 
-	echo 'Enter the External Gateway IP'
-    read ext_gateway rest
-    EXTERNAL_GATEWAY_IP=${ext_gateway}
-    if [ -z ${EXTERNAL_GATEWAY_IP} ]; then
-        echo "Please enter a valid External Gateway IP."
-    fi
+    touch ./external_tests.sh
+    chmod +x ./external_tests.sh
 
+    # TCP inbound services are really the only ones we can test without custom chains, so take advantage of that
+    splitServices $TCP_SVC_IN
+    echo '# TCP inbound tests.' >> ./external_tests.sh
+    for i in "${RESULT[@]}"; do
+        echo "Adding inbound tests for $i."
+        
+        echo "# Inbound $i tests." >> ./external_tests.sh
+        # Allowed input
+        echo "$HPING_PROGRAM -c 5 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeTest ./external_tests.sh 0 "$i inbound"
+
+        # Disallowed input: syn/fin, syn/ack, all flags, no flags (could do more combos)
+        echo "$HPING_PROGRAM -c 5 -p $i --syn --fin $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeTest ./external_tests.sh 1 "$i inbound SYN/FIN"
+
+        echo "$HPING_PROGRAM -c 5 -p $i --syn --ack $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeTest ./external_tests.sh 1 "$i inbound SYN/ACK"
+
+        echo "$HPING_PROGRAM -c 5 -p $i --syn --ack --push --urg --fin --rst $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeTest ./external_tests.sh 1 "$i inbound Christmas tree"
+
+        echo "$HPING_PROGRAM -c 5 -p $i $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeTest ./external_tests.sh 1 "$i inbound no flags"
+
+        echo '' >> ./external_tests.sh
+        echo '' >> ./external_tests.sh
+    done
+
+    # Create test chains
+    # In the firewall, we create a user-defined chain "explicit_drop" (or similar) with default dropped packets
+    # We also create tcp-in, tcp-out, upd-in, udp-out, etc.
+    # Insert test-tcp-in-start chain to the beginning of tcp-in and test-tcp-in-end at the end. These will take the test device's IP into account.
+    # Perform all tests on both machines (external and internal).
+    # Check final counts for each chain. We won't get the same granularity, but if there are problems, we can at least isolate the chain (tcp-in, tcp-out, etc.)
+    # with failing tests.
+    # "Check final counts" means:
+    #   all packets that should be dropped by default hit the first chain in the default drop chain but not the last one
+    #   all packets that should make it through the dropped by default hit the first chain and the last one
+    #   etc. for the other chains, except reversed
+
+#    if [ -f ./internal_tests.sh ]; then
+#        
 }
 
 ###################################################################################################
@@ -575,6 +715,9 @@ mainMenu()
 		16)		setDefaults
 				continueApplication
 		        mainMenu;;
+		17)		createTestScripts
+				continueApplication
+		        mainMenu;;
 	    [Qq])	exit	;;
 	    *)	echo
 	    
@@ -595,27 +738,28 @@ mainMenu()
 displayMenu()
 {
     cat << 'MENU'
-		Welcome to Assignment #2: Standalone Firewall
-		By Mat Siwoski & Shane Spoor
+        Welcome to Assignment #2: Standalone Firewall
+        By Mat Siwoski & Shane Spoor
         
-		1............................  Specify Firewall Script Location/Name
-		2............................  Customise External Address Space and Device
-		3............................  Customise Internal Address Space and Device      
-		4............................  Configure TCP Services
-		5............................  Configure UDP Services
-		6............................  Configure ICMP Services
-		7............................  Configure the Gateway
-		8............................  Show Current Settings
-		9............................  Start Firewall
-		10..........................   Enable Routing
-		11...........................  Enable the NIC 
-		12...........................  Reset Settings
-		13...........................  Disable Firewall
-		14...........................  Disable Routing
-		15...........................  Reset the NIC on the machine
-		16...........................  Set Defaults
+        1............................  Specify Firewall Script Location/Name
+        2............................  Customise External Address Space and Device
+        3............................  Customise Internal Address Space and Device      
+        4............................  Configure TCP Services
+        5............................  Configure UDP Services
+        6............................  Configure ICMP Services
+        7............................  Configure the Gateway
+        8............................  Show Current Settings
+        9............................  Start Firewall
+        10..........................   Enable Routing
+        11...........................  Set up Internal Machine 
+        12...........................  Reset Settings
+        13...........................  Disable Firewall
+        14...........................  Disable Routing
+        15...........................  Reset the NIC on the machine
+        16...........................  Set Defaults
+        17...........................  Generate Test Scripts
 
-		Q............................  Quit
+        Q............................  Quit
 
 MENU
    echo -n '      Press a Number for your choice, then Return > '
