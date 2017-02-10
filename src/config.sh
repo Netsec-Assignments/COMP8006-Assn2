@@ -268,7 +268,6 @@ getServicePort()
     fi
 
     RESOLVED=$(echo $RESOLVED | awk '{print $2}' | cut -d'/' -f 1)
-    echo $RESOLVED
 }
 
 ###################################################################################################
@@ -739,7 +738,7 @@ createTestScripts()
         PORT=$RESOLVED
 
         echo "# Outbound $i test." >> ./internal_tests.sh
-        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
         writeHpingTest ./internal_tests.sh 0 "$i outbound"
 
         (( EXPECTED_TCP_OUT_ACCEPTED += 1 ))
