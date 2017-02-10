@@ -598,7 +598,7 @@ writeTestChainCreation()
     # working as expected.
     echo "iptables -N $PROTOCOL-in-start"                          >> $SCRIPT_FILE
     echo "iptables -A $PROTOCOL-in-start -s $TEST_ADDR -j RETURN"  >> $SCRIPT_FILE
-    echo "iptables -I $PROTOCOL-in 0 -j $PROTOCOL-in-start"        >> $SCRIPT_FILE
+    echo "iptables -I $PROTOCOL-in 1 -j $PROTOCOL-in-start"        >> $SCRIPT_FILE
     echo ''                                                        >> $SCRIPT_FILE
     echo "iptables -N $PROTOCOL-in-end"                            >> $SCRIPT_FILE
     echo "iptables -A $PROTOCOL-in-end -s $TEST_ADDR -j RETURN"    >> $SCRIPT_FILE
@@ -606,7 +606,7 @@ writeTestChainCreation()
     echo ''                                                        >> $SCRIPT_FILE
     echo "iptables -N $PROTOCOL-out-start"                         >> $SCRIPT_FILE
     echo "iptables -A $PROTOCOL-out-start -d $TEST_ADDR -j RETURN" >> $SCRIPT_FILE
-    echo "iptables -I $PROTOCOL-out 0 -j $PROTOCOL-out-start"      >> $SCRIPT_FILE
+    echo "iptables -I $PROTOCOL-out 1 -j $PROTOCOL-out-start"      >> $SCRIPT_FILE
     echo ''                                                        >> $SCRIPT_FILE
     echo "iptables -N $PROTOCOL-out-end"                           >> $SCRIPT_FILE
     echo "iptables -A $PROTOCOL-out-end -d $TEST_ADDR -j RETURN"   >> $SCRIPT_FILE
@@ -618,13 +618,13 @@ writeTestChainDeletion()
     SCRIPT_FILE=$1
     PROTOCOL=$2
 
-    echo "iptables -R $PROTOCOL-in 0"                     >> $SCRIPT_FILE
+    echo "iptables -R $PROTOCOL-in 1"                     >> $SCRIPT_FILE
     echo "iptables -D $PROTOCOL-in-start"                 >> $SCRIPT_FILE
     echo ''                                               >> $SCRIPT_FILE
     echo "iptables -A $PROTOCOL-in -j $PROTOCOL-in-end"   >> $SCRIPT_FILE
     echo "iptables -D $PROTOCOL-in-end"                   >> $SCRIPT_FILE
     echo ''                                               >> $SCRIPT_FILE
-    echo "iptables -R $PROTOCOL-out 0"                    >> $SCRIPT_FILE
+    echo "iptables -R $PROTOCOL-out 1"                    >> $SCRIPT_FILE
     echo "iptables -D $PROTOCOL-out-start"                >> $SCRIPT_FILE
     echo ''                                               >> $SCRIPT_FILE
     echo "iptables -R $PROTOCOL-out -j $PROTOCOL-out-end" >> $SCRIPT_FILE
@@ -706,20 +706,20 @@ createTestScripts()
         
         echo "# Inbound $i tests." >> ./external_tests.sh
         # Allowed input
-        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
         writeHpingTest ./external_tests.sh 0 "$i inbound"
 
         # Disallowed input: syn/fin, syn/ack, all flags, no flags (could do more combos)
-        echo "$HPING_PROGRAM -c 1 -p $i --syn --fin $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --fin $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
         writeHpingTest ./external_tests.sh 1 "$i inbound SYN/FIN"
 
-        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
         writeHpingTest ./external_tests.sh 1 "$i inbound SYN/ACK"
 
-        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack --push --urg --fin --rst $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack --push --urg --fin --rst $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
         writeHpingTest ./external_tests.sh 1 "$i inbound Christmas tree"
 
-        echo "$HPING_PROGRAM -c 1 -p $i $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
         writeHpingTest ./external_tests.sh 1 "$i inbound no flags"
 
         echo '' >> ./external_tests.sh
@@ -730,13 +730,13 @@ createTestScripts()
 
     splitServices $TCP_SVC_OUT
     EXPECTED_TCP_OUT_ACCEPTED=0
-    echo '# TCP outbound tests.' >> ./external_tests.sh
+    echo '# TCP outbound tests.' >> ./internal_tests.sh
     for i in "${RESULT[@]}"; do
         echo "Adding outbound test for $i."
         
-        echo "# Outbound $i test." >> ./external_tests.sh
-        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeHpingTest ./external_tests.sh 0 "$i inbound"
+        echo "# Outbound $i test." >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./internal_tests.sh
+        writeHpingTest ./internal_tests.sh 0 "$i outbound"
 
         (( EXPECTED_TCP_OUT_ACCEPTED += 1 ))
     done

@@ -1,0 +1,4 @@
+external_tests.sh
+internal_tests.sh
+fw_pre_test.sh
+fw_post_test.sh
