@@ -39,6 +39,8 @@ INTERNAL_GATEWAY_IP=""
 INTERNAL_STATIC_IP=''
 EXTERNAL_GATEWAY_IP=""
 
+TEST_ADDR=""
+
 ###################################################################################################
 # Name: 
 #  continueApplication
@@ -499,7 +501,8 @@ setDefaults()
 	TCP_SVC_OUT="domain;http;https;ssh"
     TCP_SVC_IN="ssh"
 	UDP_SVC_OUT="domain;bootpc;bootps"
-	ICMP_SVC_OUT="0;8"
+	ICMP_SVC_IN="0"
+	ICMP_SVC_OUT="8"
 
 	INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
 	INTERNAL_DEVICE="enp3s2"
@@ -564,7 +567,7 @@ splitServices()
     done
 }
 
-writeTest()
+writeHpingTest()
 {
     SCRIPT_FILE=$1
     EXIT_PASS=$2
@@ -578,6 +581,72 @@ writeTest()
     echo ''                               >> $SCRIPT_FILE
 }
 
+writeTestChainCreation()
+{
+    SCRIPT_FILE=$1
+    PROTOCOL=$2
+    TEST_ADDR=$3
+
+    # All packets coming from and going to the test address will be tracked.
+    # 
+    # If a packet is accepted, it will add 1 to $PROTOCOL-[in|out]-start but
+    # not $PROTOCOL-[in|out]-end; if the packet traverses all chains in
+    # $PROTOCOL-[in|out] and doesn't match (i.e., it's dropped), it will also
+    # add to $PROTOCOL-[in|out]-end. We can check the final counts of those
+    # chains to determine how many packets were accepted/dropped and compare
+    # against the expected results given the rules to check that rules are
+    # working as expected.
+    echo "iptables -N $PROTOCOL-in-start"                          >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-in-start -s $TEST_ADDR -j RETURN"  >> $SCRIPT_FILE
+    echo "iptables -I $PROTOCOL-in 0 -j $PROTOCOL-in-start"        >> $SCRIPT_FILE
+    echo ''                                                        >> $SCRIPT_FILE
+    echo "iptables -N $PROTOCOL-in-end"                            >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-in-end -s $TEST_ADDR -j RETURN"    >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-in -j $PROTOCOL-in-end"            >> $SCRIPT_FILE
+    echo ''                                                        >> $SCRIPT_FILE
+    echo "iptables -N $PROTOCOL-out-start"                         >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-out-start -d $TEST_ADDR -j RETURN" >> $SCRIPT_FILE
+    echo "iptables -I $PROTOCOL-out 0 -j $PROTOCOL-out-start"      >> $SCRIPT_FILE
+    echo ''                                                        >> $SCRIPT_FILE
+    echo "iptables -N $PROTOCOL-out-end"                           >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-out-end -d $TEST_ADDR -j RETURN"   >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-out -j $PROTOCOL-out-end"          >> $SCRIPT_FILE    
+}
+
+writeTestChainDeletion()
+{
+    SCRIPT_FILE=$1
+    PROTOCOL=$2
+
+    echo "iptables -R $PROTOCOL-in 0"                     >> $SCRIPT_FILE
+    echo "iptables -D $PROTOCOL-in-start"                 >> $SCRIPT_FILE
+    echo ''                                               >> $SCRIPT_FILE
+    echo "iptables -A $PROTOCOL-in -j $PROTOCOL-in-end"   >> $SCRIPT_FILE
+    echo "iptables -D $PROTOCOL-in-end"                   >> $SCRIPT_FILE
+    echo ''                                               >> $SCRIPT_FILE
+    echo "iptables -R $PROTOCOL-out 0"                    >> $SCRIPT_FILE
+    echo "iptables -D $PROTOCOL-out-start"                >> $SCRIPT_FILE
+    echo ''                                               >> $SCRIPT_FILE
+    echo "iptables -R $PROTOCOL-out -j $PROTOCOL-out-end" >> $SCRIPT_FILE
+    echo "iptables -D $PROTOCOL-out-end"                  >> $SCRIPT_FILE    
+    
+}
+
+writePacketCountTest()
+{
+    SCRIPT_FILE=$1
+    CHAIN=$2
+    EXPECTED_COUNT=$3
+
+    echo "COUNT=\$(iptables -vL $CHAIN | sed '3q;d' | awk '{print \$1}')"                 >> $SCRIPT_FILE
+    echo "if [ \$COUNT == $EXPECTED_COUNT ]; then"                                        >> $SCRIPT_FILE
+    echo "    echo 'chain $CHAIN had expected packet count $EXPECTED_COUNT.'"             >> $SCRIPT_FILE
+    echo "else"                                                                           >> $SCRIPT_FILE
+    echo "    echo \"chain $CHAIN had packet count \$COUNT, should be $EXPECTED_COUNT.\"" >> $SCRIPT_FILE
+    echo "fi"                                                                             >> $SCRIPT_FILE
+    echo ''                                                                               >> $SCRIPT_FILE
+}
+
 ###################################################################################################
 # Name: 
 #  createTestScripts
@@ -588,7 +657,7 @@ createTestScripts()
 {
     echo "Enter the test device's IP address."
     read TEST_ADDR REST
-    echo "Generating tests using test device IP $TEST_ADDR, internal IP $INTERNAL_ADDRESS, firewall IP $EXTERNAL_ADDRESS."
+    echo "Generating tests using test device IP $TEST_ADDR, internal IP $INTERNAL_STATIC_IP."
 
     HPING_PROGRAM=''
     if [ "$#" == 2 ]; then
@@ -597,43 +666,84 @@ createTestScripts()
         HPING_PROGRAM='hping3'
     fi
 
+    echo "Creating external_tests.sh. Run these tests from $TEST_ADDR."
     if [ -f ./external_tests.sh ]; then
-        echo "Overwriting external_tests.sh. Run these tests from a machine in address space $EXTERNAL_ADDRESS_SPACE."
         rm -f ./external_tests.sh
-    else
-        echo "Creating external_tests.sh. Run these tests from a machine in address space $EXTERNAL_ADDRESS_SPACE."
     fi
-
     touch ./external_tests.sh
     chmod +x ./external_tests.sh
 
-    # TCP inbound services are really the only ones we can test without custom chains, so take advantage of that
+    echo "Creating internal_tests.sh. Run these tests from $INTERNAL_STATIC_IP."
+    if [ -f ./external_tests.sh ]; then
+        rm -f ./external_tests.sh
+    fi
+    touch ./external_tests.sh
+    chmod +x ./external_tests.sh
+
+    echo "Creating fw_pre_test.sh. Run this script on the firewall machine after the firewall has been enabled and before running the test scripts."
+    if [ -f ./fw_pre_test.sh ]; then
+        rm -f ./fw_pre_test.sh
+    fi
+    touch ./fw_pre_test.sh
+    chmod +x ./fw_pre_test.sh
+
+    echo "Creating fw_post_test.sh. Run this script on the firewall machine after the external_tests.sh and internal_tests.sh have been run."
+    if [ -f ./fw_post_test.sh ]; then
+        rm -f ./fw_post_test.sh
+    fi
+    touch ./fw_post_test.sh
+    chmod +x ./fw_post_test.sh
+
+    # TCP tests can check the return value of hping3 since they should actually get a response
+    # All other tests are verified only by the firewall pre/post test scripts.
+
     splitServices $TCP_SVC_IN
+    EXPECTED_TCP_IN_ACCEPTED=0
+    EXPECTED_TCP_IN_DROPPED=0
     echo '# TCP inbound tests.' >> ./external_tests.sh
     for i in "${RESULT[@]}"; do
         echo "Adding inbound tests for $i."
         
         echo "# Inbound $i tests." >> ./external_tests.sh
         # Allowed input
-        echo "$HPING_PROGRAM -c 5 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeTest ./external_tests.sh 0 "$i inbound"
+        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 0 "$i inbound"
 
         # Disallowed input: syn/fin, syn/ack, all flags, no flags (could do more combos)
-        echo "$HPING_PROGRAM -c 5 -p $i --syn --fin $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeTest ./external_tests.sh 1 "$i inbound SYN/FIN"
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --fin $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 1 "$i inbound SYN/FIN"
 
-        echo "$HPING_PROGRAM -c 5 -p $i --syn --ack $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeTest ./external_tests.sh 1 "$i inbound SYN/ACK"
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 1 "$i inbound SYN/ACK"
 
-        echo "$HPING_PROGRAM -c 5 -p $i --syn --ack --push --urg --fin --rst $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeTest ./external_tests.sh 1 "$i inbound Christmas tree"
+        echo "$HPING_PROGRAM -c 1 -p $i --syn --ack --push --urg --fin --rst $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 1 "$i inbound Christmas tree"
 
-        echo "$HPING_PROGRAM -c 5 -p $i $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
-        writeTest ./external_tests.sh 1 "$i inbound no flags"
+        echo "$HPING_PROGRAM -c 1 -p $i $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 1 "$i inbound no flags"
 
         echo '' >> ./external_tests.sh
-        echo '' >> ./external_tests.sh
+
+        (( EXPECTED_TCP_IN_ACCEPTED += 1 ))
+        (( EXPECTED_TCP_IN_DROPPED += 4 ))
     done
+
+    splitServices $TCP_SVC_OUT
+    EXPECTED_TCP_OUT_ACCEPTED=0
+    echo '# TCP outbound tests.' >> ./external_tests.sh
+    for i in "${RESULT[@]}"; do
+        echo "Adding outbound test for $i."
+        
+        echo "# Outbound $i test." >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $i --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
+        writeHpingTest ./external_tests.sh 0 "$i inbound"
+
+        (( EXPECTED_TCP_OUT_ACCEPTED += 1 ))
+    done
+
+    writeTestChainCreation ./fw_pre_test.sh tcp $TEST_ADDR
+    writePacketCountTest ./fw_post_test.sh tcp-in-start $(( $EXPECTED_TCP_IN_ACCEPTED + $EXPECTED_TCP_IN_DROPPED ))
+    writePacketCountTest ./fw_post_test.sh tcp-in-end $EXPECTED_TCP_IN_DROPPED
 
     # Create test chains
     # In the firewall, we create a user-defined chain "explicit_drop" (or similar) with default dropped packets
