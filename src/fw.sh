@@ -117,6 +117,12 @@ dropPortZeroTraffic()
 	iptables -A INPUT -p tcp --sport 0 -j DROP
 }
 
+###################################################################################################
+# Name: 
+#  inOutboundTCP
+# Description:
+#  This function sets the TCP rules for outbound connections.
+###################################################################################################
 inOutboundTCP()
 {
     echo 'Setting TCP rules'

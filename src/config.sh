@@ -256,6 +256,13 @@ configureICMPServices()
     done
 }
 
+
+###################################################################################################
+# Name: 
+#  getServicePort
+# Description:
+#  This function gets the service port.
+###################################################################################################
 getServicePort()
 {
     SERVICE=$1
@@ -581,6 +588,12 @@ splitServices()
     done
 }
 
+###################################################################################################
+# Name: 
+#  writeHpingTest
+# Description:
+#  This function writes the HPing test and wehtehr it passed or failed.
+###################################################################################################
 writeHpingTest()
 {
     SCRIPT_FILE=$1
@@ -595,6 +608,12 @@ writeHpingTest()
     echo ''                               >> $SCRIPT_FILE
 }
 
+###################################################################################################
+# Name: 
+#  writeTestChainCreation
+# Description:
+#  This function creates the test chains. 
+###################################################################################################
 writeTestChainCreation()
 {
     SCRIPT_FILE=$1
@@ -627,6 +646,12 @@ writeTestChainCreation()
     echo "iptables -A $PROTOCOL-out -j $PROTOCOL-out-end"          >> $SCRIPT_FILE    
 }
 
+###################################################################################################
+# Name: 
+#  writeTestChainDeletion
+# Description:
+#  This function deletes the test chains.
+###################################################################################################
 writeTestChainDeletion()
 {
     SCRIPT_FILE=$1
@@ -646,6 +671,12 @@ writeTestChainDeletion()
     
 }
 
+###################################################################################################
+# Name: 
+#  writePacketCountTest
+# Description:
+#  This function writes the packet count for the tests.
+###################################################################################################
 writePacketCountTest()
 {
     SCRIPT_FILE=$1
