@@ -29,7 +29,7 @@ getPacketCount()
 }
 
 # Check the drop-invalid chain's results before user-defined
-getRuleRestuls "$(iptables -vnL drop-invalid)"
+getRuleResults "$(iptables -vnL drop-invalid)"
 DROP_INVALID_RESULTS=("${RESULT[@]}")
 EXPECTED_INVALID_RESULTS=()
 EXPECTED_INVALID_RESULTS[0]=0   # -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
