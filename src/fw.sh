@@ -117,31 +117,6 @@ dropPortZeroTraffic()
 	iptables -A INPUT -p tcp --sport 0 -j DROP
 }
 
-inOutboundTCP()
-{
-    echo 'Setting TCP rules'
-    for i in "${TCP_SERVICES[@]}"; do
-        iptables -A FORWARD -d $INTERNALADDRESS -i $EXTERNALDEVICE -p tcp $i
-    done
-}
-
-
-
-###################################################################################################
-# Name: 
-#  allowDNSAndDHCPTraffic
-# Description:H
-#  This function drops inbound traffic to port 80 (http) from source ports less than 1024.
-###################################################################################################
-allowDNSAndDHCPTraffic()
-{
-	echo 'Allow DNS and DHCP Traffic'
-	iptables -A INPUT -p udp --sport 53 -j other-in
-	iptables -A OUTPUT -p udp --dport 53 -j other-out
-	iptables -A INPUT -p udp --sport 67:68 --dport 67:68 -j other-in
-	iptables -A OUTPUT -p udp --dport 67:68 --sport 67:68 -j other-out
-}
-
 ###################################################################################################
 # Name: 
 #  createDropTrafficRules
@@ -152,38 +127,32 @@ createDropTrafficRules()
 {
     iptables -A INPUT -j DROP
 
+    # Create a chain that explicitly drops certain packets (for accounting)
+    iptables -N drop-invalid
+
 	echo 'Drop invalid TCP Packets that are inbound'
-	iptables -A FORWARD -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
-	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
-	iptables -A FORWARD -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
-	iptables -A FORWARD -p tcp --tcp-flags ALL ALL -j DROP
-	iptables -A FORWARD -p tcp --tcp-flags ALL NONE -j DROP
+	iptables -A drop-invalid -p tcp --tcp-flags ALL ACK,RST,SYN,FIN -j DROP
+	iptables -A drop-invalid -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
+	iptables -A drop-invalid -p tcp --tcp-flags SYN,FIN,PSH SYN,FIN,PSH -j DROP
+	iptables -A drop-invalid -p tcp --tcp-flags ALL ALL -j DROP
+	iptables -A drop-invalid -p tcp --tcp-flags ALL NONE -j DROP
 
 	echo 'Drop telnet in and out'
-	iptables -A FORWARD -p tcp --sport 23 -j DROP	
-	iptables -A FORWARD -p tcp --dport 23 -j DROP	
+	iptables -A drop-invalid -p tcp --sport 23 -j DROP	
+	iptables -A drop-invalid -p tcp --dport 23 -j DROP	
 
 	echo 'Drop traffic to 32768-32775'
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 32768:32775 -j DROP
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -p udp -m multiport --dports 32768:32775 -j DROP
+	iptables -A drop-invalid -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 32768:32775 -j DROP
+	iptables -A drop-invalid -i $EXTERNAL_DEVICE -p udp -m multiport --dports 32768:32775 -j DROP
 
 	echo 'Drop traffic to 137-139'
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 137:139 -j DROP
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -p udp -m multiport --dports 137:139 -j DROP
+	iptables -A drop-invalid -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 137:139 -j DROP
+	iptables -A drop-invalid -i $EXTERNAL_DEVICE -p udp -m multiport --dports 137:139 -j DROP
 
 	echo 'Drop traffic to 111 & 515'
-	iptables -A FORWARD -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 111,515 -j DROP
+	iptables -A drop-invalid -i $EXTERNAL_DEVICE -p tcp -m multiport --dports 111,515 -j DROP
 
-	#echo 'Drop all network activity that appears to be from the internal network'
-	#iptables -A FORWARD -i $EXTERNAL_DEVICE -d $INTERNAL_ADDRESS_SPACE -j DROP
-
-	echo 'Drop any SYN targeting high port coming the wrong way'
-	iptables -A FORWARD -p tcp --syn -m multiport --dports 1025:65535 -j DROP
-
-	#echo 'Drop service to service traffic.'
-	#iptables -A FORWARD -p tcp --sport 0:1024 --dport 0:1024 -j DROP
-	#iptables -A FORWARD -p udp --sport 0:1024 --dport 0:1024 -j DROP
-
+    iptables -A FORWARD -j drop-invalid
 }
 
 ###################################################################################################
@@ -197,10 +166,12 @@ createFirewallRules()
     iptables -P FORWARD DROP
 
     # Allow DNS traffic
-    iptables -A FORWARD -i $INTERNAL_DEVICE -p tcp --dport domain -j ACCEPT
-    iptables -A FORWARD -o $INTERNAL_DEVICE -p tcp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-    iptables -A FORWARD -i $INTERNAL_DEVICE -p udp --dport domain -j ACCEPT
-    iptables -A FORWARD -o $INTERNAL_DEVICE -p udp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 
+    iptables -N dns-traffic
+    iptables -A dns-traffic -i $INTERNAL_DEVICE -p tcp --dport domain -j ACCEPT
+    iptables -A dns-traffic -o $INTERNAL_DEVICE -p tcp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    iptables -A dns-traffic -i $INTERNAL_DEVICE -p udp --dport domain -j ACCEPT
+    iptables -A dns-traffic -o $INTERNAL_DEVICE -p udp --sport domain -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    iptables -A FORWARD -j dns-traffic
 
     # Set up chains for accounting and testing
     iptables -N tcp-in
@@ -232,9 +203,6 @@ createFirewallRules()
         iptables -A tcp-out -p tcp --dport $i -j ACCEPT
     done
 
-	#drop TCP rules not declared by user.
-    #iptables -A tcp -j DROP
-
     for i in "${UDP_SVC_IN[@]}"; do
         echo "Adding rule for UDP INBOUND service: $i"
         iptables -t nat -A PREROUTING -p udp -i $EXTERNAL_DEVICE --dport $i -j DNAT --to-destination $INTERNAL_STATIC_IP:$i
@@ -248,9 +216,6 @@ createFirewallRules()
         iptables -A udp-out -p udp --dport $i -j ACCEPT
     done
 
-	#drop UDP rules not declared by user.
-	#iptables -A udp -j DROP
-
     for i in "${ICMP_SVC_IN[@]}"; do
         echo "Adding rule for ICMP INBOUND type: $i"
         iptables -A icmp-in -p icmp --icmp-type $i -j ACCEPT
@@ -260,9 +225,6 @@ createFirewallRules()
         echo "Adding rule for ICMP OUTBOUND type: $i"
         iptables -A icmp-out -p icmp --icmp-type $i -j ACCEPT
     done
-
-	#drop ICMP rules not declared by user.
-    #iptables -A icmp -j DROP
 }
 
 ###################################################################################################

@@ -196,29 +196,29 @@ configureICMPServices()
 {
     echo 'Enter a semicolon-separated list of allowed OUTBOUND ICMP services (by type; see below).'
     echo '
-    Type    Name					
-    ----	-------------------------
-      0	    Echo Reply				 
-      1	    Unassigned				 
-      2	    Unassigned				 
-      3	    Destination Unreachable	
-      4	    Source Quench			
-      5	    Redirect				
-      6	    Alternate Host Address	
-      7	    Unassigned				
-      8	    Echo					
-      9	    Router Advertisement	
-     10	    Router Selection		
-     11	    Time Exceeded			
-     12	    Parameter Problem		
-     13	    Timestamp				
-     14	    Timestamp Reply			
-     15	    Information Request		
-     16	    Information Reply		
-     17	    Address Mask Request    
-     18	    Address Mask Reply		
-     19	    Reserved (for Security)	
-     20-29  Reserved (for Robustness Experiment)	    
+    Type    Name                    
+    ----    -------------------------
+      0        Echo Reply                 
+      1        Unassigned                 
+      2        Unassigned                 
+      3        Destination Unreachable    
+      4        Source Quench            
+      5        Redirect                
+      6        Alternate Host Address    
+      7        Unassigned                
+      8        Echo                    
+      9        Router Advertisement    
+     10        Router Selection        
+     11        Time Exceeded            
+     12        Parameter Problem        
+     13        Timestamp                
+     14        Timestamp Reply            
+     15        Information Request        
+     16        Information Reply        
+     17        Address Mask Request    
+     18        Address Mask Reply        
+     19        Reserved (for Security)    
+     20-29  Reserved (for Robustness Experiment)        
      30     Traceroute
      31     Datagram Conversion Error
      32     Mobile Host Redirect 
@@ -263,11 +263,11 @@ getServicePort()
     
     RESOLVED=$(getent services $SERVICE/$PROTOCOL)
     if [ -z ${RESOLVED+x} ]; then
-        echo "No such service $SERVICE for protocol $PROTOCOL."
-        RESOLVED=0
+        echo "No service is mapped to $SERVICE for protocol $PROTOCOL."
+        RESOLVED=$1
+    else
+        RESOLVED=$(echo $RESOLVED | awk '{print $2}' | cut -d'/' -f 1)    
     fi
-
-    RESOLVED=$(echo $RESOLVED | awk '{print $2}' | cut -d'/' -f 1)
 }
 
 ###################################################################################################
@@ -312,7 +312,7 @@ startFirewall()
     fi
     chmod +x $FIREWALL_PATH
 
-	echo 'Setting up the firewall subnet routing'
+    echo 'Setting up the firewall subnet routing'
 
     ethtool -s $INTERNAL_DEVICE mdix on
 
@@ -321,13 +321,13 @@ startFirewall()
 
     echo "1" >/proc/sys/net/ipv4/ip_forward
 
-	iptables -t nat -A POSTROUTING -o $EXTERNAL_DEVICE -j MASQUERADE
+    iptables -t nat -A POSTROUTING -o $EXTERNAL_DEVICE -j MASQUERADE
 
-	if [ -f /etc/resolv.conf ]; then
-		mv /etc/resolv.conf /etc/resolv.conf.old
-	fi
+    if [ -f /etc/resolv.conf ]; then
+        mv /etc/resolv.conf /etc/resolv.conf.old
+    fi
 
-	echo nameserver 8.8.8.8 > /etc/resolv.conf	
+    echo nameserver 8.8.8.8 > /etc/resolv.conf    
 
     echo 'Starting the firewall'
     sh $FIREWALL_PATH
@@ -342,14 +342,14 @@ startFirewall()
 disableFirewall()
 {
     echo 'Disabling the firewall.'
-	iptables -t nat -F
+    iptables -t nat -F
     iptables -t mangle -F
 
-	iptables -F
-	iptables -X
-	iptables -P INPUT ACCEPT
-	iptables -P OUTPUT ACCEPT
-	iptables -P FORWARD ACCEPT
+    iptables -F
+    iptables -X
+    iptables -P INPUT ACCEPT
+    iptables -P OUTPUT ACCEPT
+    iptables -P FORWARD ACCEPT
 
     ethtool -s $INTERNAL_DEVICE mdix auto
 
@@ -358,8 +358,8 @@ disableFirewall()
     ip addr delete $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
     ip link set $INTERNAL_DEVICE down
 
-	rm /etc/resolv.conf
-	mv /etc/resolv.conf.old /etc/resolv.conf
+    rm /etc/resolv.conf
+    mv /etc/resolv.conf.old /etc/resolv.conf
 }
 
 ###################################################################################################
@@ -370,20 +370,20 @@ disableFirewall()
 ###################################################################################################
 resetSettings()
 {
-	echo 'Resetting the firewall settings.'
-	#DEFAULT VALUES
-	FIREWALL_PATH=""
+    echo 'Resetting the firewall settings.'
+    #DEFAULT VALUES
+    FIREWALL_PATH=""
 
-	# Service configuration
-	TCP_SVC_OUT=()
-	UDP_SVC_OUT=()
-	ICMP_SVC_OUT=()
+    # Service configuration
+    TCP_SVC_OUT=()
+    UDP_SVC_OUT=()
+    ICMP_SVC_OUT=()
     TCP_SVC_IN=()
 
-	INTERNAL_ADDRESS_SPACE=""
-	INTERNAL_DEVICE=""
-	EXTERNAL_ADDRESS_SPACE=""
-	EXTERNAL_DEVICE=""
+    INTERNAL_ADDRESS_SPACE=""
+    INTERNAL_DEVICE=""
+    EXTERNAL_ADDRESS_SPACE=""
+    EXTERNAL_DEVICE=""
 
     disableFirewall
 }
@@ -398,27 +398,39 @@ showCurrentSettings()
 {
     echo 'The current setings of the firewall.'
     echo "The Firewall path is: ${FIREWALL_PATH}"
-    echo "The following TCP services are selected:"
+    echo "The following outbound TCP services are allowed:"
     for i in "${TCP_SVC_OUT[@]}"; do
         echo '                                            ' "$i"
     done
-    echo "The following UDP services are selected:"
-	for i in "${UDP_SVC_OUT[@]}"; do
-		echo '                                            ' "$i"
-	done
- 	echo "The following ICMP services are selected:"
-	for i in "${ICMP_SVC_OUT[@]}"; do
-		echo '                                            ' "$i"
-	done    
+    echo "The following inbound TCP services are allowed:"
+    for i in "${TCP_SVC_IN[@]}"; do
+        echo '                                            ' "$i"
+    done
+    echo "The following outbound UDP services are allowed:"
+    for i in "${UDP_SVC_OUT[@]}"; do
+        echo '                                            ' "$i"
+    done
+    echo "The following inbound UDP services are allowed:"
+    for i in "${UDP_SVC_IN[@]}"; do
+        echo '                                            ' "$i"
+    done
+    echo "The following outbound ICMP services are allowed:"
+    for i in "${ICMP_SVC_OUT[@]}"; do
+        echo '                                            ' "$i"
+    done
+    echo "The following inbound ICMP services are allowed:"
+    for i in "${ICMP_SVC_OUT[@]}"; do
+        echo '                                            ' "$i"
+    done
     echo "The Internal Address Space is: ${INTERNAL_ADDRESS_SPACE}"
     echo "The Internal Device is: ${INTERNAL_DEVICE}"
     echo "The External Address Space is: ${EXTERNAL_ADDRESS_SPACE}"
     echo "The External Device is: ${EXTERNAL_DEVICE}"
-	echo "The Internal Masked Gateway IP is: ${INTERNAL_GATEWAY_IP_MASKED}"
+    echo "The Internal Masked Gateway IP is: ${INTERNAL_GATEWAY_IP_MASKED}"
     echo "The Internal Masked Static IP is: ${INTERNAL_STATIC_IP_MASKED}"
     echo "The External Masked Gateway IP is: ${EXTERNAL_GATEWAY_IP_MASKED}"
     echo "The Internal Gateway IP is: ${INTERNAL_GATEWAY_IP}"
-	echo "The Internal Static IP is: ${INTERNAL_STATIC_IP}"
+    echo "The Internal Static IP is: ${INTERNAL_STATIC_IP}"
     echo "The External Gateway IP is: ${EXTERNAL_GATEWAY_IP}"
 }
 
@@ -426,33 +438,35 @@ showCurrentSettings()
 # Name: 
 #  internalMachineSetup
 # Description:
-#  This function disables the NIC card.
+#  This function disables one of the internal machine's NICs, sets its default gateway to the
+#  appropriate firewall NIC, and sets nameserver/resolv.conf to the be the same as the firewall's.
 ###################################################################################################
 internalMachineSetup()
 {
-    echo 'Setting up the internal machine'
+    echo 'Setting up the internal machine.'
 
-	ip link set dev $EXTERNAL_DEVICE down
-	ip link set dev $INTERNAL_DEVICE up
-	ip addr add $INTERNAL_STATIC_IP_MASKED dev $INTERNAL_DEVICE
-	ip route add default via $INTERNAL_GATEWAY_IP
+    ip link set dev $EXTERNAL_DEVICE down
+    ip link set dev $INTERNAL_DEVICE up
+    ip addr add $INTERNAL_STATIC_IP_MASKED dev $INTERNAL_DEVICE
+    ip route add default via $INTERNAL_GATEWAY_IP
 
-	if [ -f /etc/resolv.conf ]; then
-		mv /etc/resolv.conf /etc/resolv.conf.old
-	fi
+    if [ -f /etc/resolv.conf ]; then
+        mv /etc/resolv.conf /etc/resolv.conf.old
+    fi
 
-	echo nameserver 8.8.8.8 > /etc/resolv.conf
+    echo nameserver 8.8.8.8 > /etc/resolv.conf
 }
 
 ###################################################################################################
 # Name: 
-#  resetMachine
+#  internalMachineReset
 # Description:
-#  This function resets the machine's NIC cards.
+#  This function restores the internal machine's NICs, routing and name server settings to their
+#  old values;.
 ###################################################################################################
-resetMachine()
+internalMachineReset()
 {
-    echo 'Resetting the machine.'
+    echo 'Resetting the internal machine.'
 
 	ip route delete default via $INTERNAL_GATEWAY_IP
 	ip addr delete $INTERNAL_STATIC_IP_MASKED dev $INTERNAL_DEVICE
@@ -465,71 +479,33 @@ resetMachine()
 
 ###################################################################################################
 # Name: 
-#  setupRouting
-# Description:
-#  This function sets up routing on the device.
-###################################################################################################
-setupRouting()
-{
-    ethtool -s $INTERNAL_DEVICE mdix on
-
-    ip addr add $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
-    ip link set $INTERNAL_DEVICE up
-
-    echo "1" >/proc/sys/net/ipv4/ip_forward
-
-    ip route add $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
-    ip route add $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
-}
-
-###################################################################################################
-# Name: 
-#  resetRouting
-# Description:
-#  This function resets the machine's NIC cards.
-###################################################################################################
-resetRouting()
-{
-    ethtool -s $INTERNAL_DEVICE mdix auto
-
-    echo "0" >/proc/sys/net/ipv4/ip_forward
-    
-    ip route delete $EXTERNAL_ADDRESS_SPACE via $EXTERNAL_GATEWAY_IP dev $EXTERNAL_DEVICE
-    ip route delete $INTERNAL_ADDRESS_SPACE via $INTERNAL_GATEWAY_IP dev $INTERNAL_DEVICE
-
-    ip addr delete $INTERNAL_GATEWAY_IP_MASKED dev $INTERNAL_DEVICE
-    ip link set $INTERNAL_DEVICE down
-}
-
-###################################################################################################
-# Name: 
 #  setDefaults
 # Description:
 #  This function resets the machine's NIC cards.
 ###################################################################################################
 setDefaults()
 {
-	echo "Setting up default values."
-	FIREWALL_PATH="./fw.sh"
+    echo "Setting up default values."
+    FIREWALL_PATH="./fw.sh"
  
-	TCP_SVC_OUT="domain;http;https;ssh"
+    TCP_SVC_OUT="http;https;ssh"
     TCP_SVC_IN="ssh"
-	UDP_SVC_OUT="domain;bootpc;bootps"
-	ICMP_SVC_IN="0"
-	ICMP_SVC_OUT="8"
+    UDP_SVC_OUT="bootpc;bootps"
+    ICMP_SVC_IN="0"
+    ICMP_SVC_OUT="8"
 
-	INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
-	INTERNAL_DEVICE="enp3s2"
-	EXTERNAL_ADDRESS_SPACE="192.168.0.0/24"
-	EXTERNAL_DEVICE="eno1"
+    INTERNAL_ADDRESS_SPACE="10.0.4.0/24"
+    INTERNAL_DEVICE="enp3s2"
+    EXTERNAL_ADDRESS_SPACE="192.168.0.0/24"
+    EXTERNAL_DEVICE="eno1"
 
-	INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
-	INTERNAL_STATIC_IP_MASKED='10.0.4.254/24'
-	EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
+    INTERNAL_GATEWAY_IP_MASKED="10.0.4.1/24"
+    INTERNAL_STATIC_IP_MASKED='10.0.4.254/24'
+    EXTERNAL_GATEWAY_IP_MASKED="192.168.0.8/24"
 
-	INTERNAL_GATEWAY_IP="10.0.4.1"
-	INTERNAL_STATIC_IP='10.0.4.2'
-	EXTERNAL_GATEWAY_IP="192.168.0.8"
+    INTERNAL_GATEWAY_IP="10.0.4.1"
+    INTERNAL_STATIC_IP='10.0.4.2'
+    EXTERNAL_GATEWAY_IP="192.168.0.8"
 }
 
 ###################################################################################################
@@ -548,7 +524,7 @@ configureGateway()
     fi
     INTERNAL_GATEWAY_IP=$(echo $INTERNAL_GATEWAY_IP_MASKED | cut -d'/' -f 1)
 
-	echo 'Enter the Masked Internal Static IP'
+    echo 'Enter the Masked Internal Static IP'
     read int_masked_static rest
     INTERNAL_STATIC_IP_MASKED=${int_masked_static}
     if [ -z ${INTERNAL_STATIC_IP_MASKED} ]; then
@@ -556,7 +532,7 @@ configureGateway()
     fi
     INTERNAL_STATIC_IP=$(echo $INTERNAL_STATIC_IP_MASKED | cut -d'/' -f 1)
 
-	echo 'Enter the Masked External Gateway IP'
+    echo 'Enter the Masked External Gateway IP'
     read ext__masked_gateway rest
     EXTERNAL_GATEWAY_IP_MASKED=${ext__masked_gateway}
     if [ -z ${EXTERNAL_GATEWAY_IP_MASKED} ]; then
@@ -581,86 +557,6 @@ splitServices()
     done
 }
 
-writeHpingTest()
-{
-    SCRIPT_FILE=$1
-    EXIT_PASS=$2
-    TEST_NAME=$3
-
-    echo "if [ \$? == $EXIT_PASS ]; then" >> $SCRIPT_FILE
-    echo "    echo '$TEST_NAME: passed'"  >> $SCRIPT_FILE
-    echo "else"                           >> $SCRIPT_FILE
-    echo "    echo '$TEST_NAME: failed'"  >> $SCRIPT_FILE
-    echo "fi"                             >> $SCRIPT_FILE
-    echo ''                               >> $SCRIPT_FILE
-}
-
-writeTestChainCreation()
-{
-    SCRIPT_FILE=$1
-    PROTOCOL=$2
-    TEST_ADDR=$3
-
-    # All packets coming from and going to the test address will be tracked.
-    # 
-    # If a packet is accepted, it will add 1 to $PROTOCOL-[in|out]-start but
-    # not $PROTOCOL-[in|out]-end; if the packet traverses all chains in
-    # $PROTOCOL-[in|out] and doesn't match (i.e., it's dropped), it will also
-    # add to $PROTOCOL-[in|out]-end. We can check the final counts of those
-    # chains to determine how many packets were accepted/dropped and compare
-    # against the expected results given the rules to check that rules are
-    # working as expected.
-    echo "iptables -N $PROTOCOL-in-start"                          >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-in-start -s $TEST_ADDR -j RETURN"  >> $SCRIPT_FILE
-    echo "iptables -I $PROTOCOL-in 1 -j $PROTOCOL-in-start"        >> $SCRIPT_FILE
-    echo ''                                                        >> $SCRIPT_FILE
-    echo "iptables -N $PROTOCOL-in-end"                            >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-in-end -s $TEST_ADDR -j RETURN"    >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-in -j $PROTOCOL-in-end"            >> $SCRIPT_FILE
-    echo ''                                                        >> $SCRIPT_FILE
-    echo "iptables -N $PROTOCOL-out-start"                         >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-out-start -d $TEST_ADDR -j RETURN" >> $SCRIPT_FILE
-    echo "iptables -I $PROTOCOL-out 1 -j $PROTOCOL-out-start"      >> $SCRIPT_FILE
-    echo ''                                                        >> $SCRIPT_FILE
-    echo "iptables -N $PROTOCOL-out-end"                           >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-out-end -d $TEST_ADDR -j RETURN"   >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-out -j $PROTOCOL-out-end"          >> $SCRIPT_FILE    
-}
-
-writeTestChainDeletion()
-{
-    SCRIPT_FILE=$1
-    PROTOCOL=$2
-
-    echo "iptables -R $PROTOCOL-in 1"                     >> $SCRIPT_FILE
-    echo "iptables -D $PROTOCOL-in-start"                 >> $SCRIPT_FILE
-    echo ''                                               >> $SCRIPT_FILE
-    echo "iptables -A $PROTOCOL-in -j $PROTOCOL-in-end"   >> $SCRIPT_FILE
-    echo "iptables -D $PROTOCOL-in-end"                   >> $SCRIPT_FILE
-    echo ''                                               >> $SCRIPT_FILE
-    echo "iptables -R $PROTOCOL-out 1"                    >> $SCRIPT_FILE
-    echo "iptables -D $PROTOCOL-out-start"                >> $SCRIPT_FILE
-    echo ''                                               >> $SCRIPT_FILE
-    echo "iptables -R $PROTOCOL-out -j $PROTOCOL-out-end" >> $SCRIPT_FILE
-    echo "iptables -D $PROTOCOL-out-end"                  >> $SCRIPT_FILE    
-    
-}
-
-writePacketCountTest()
-{
-    SCRIPT_FILE=$1
-    CHAIN=$2
-    EXPECTED_COUNT=$3
-
-    echo "COUNT=\$(iptables -vL $CHAIN | sed '3q;d' | awk '{print \$1}')"                 >> $SCRIPT_FILE
-    echo "if [ \$COUNT == $EXPECTED_COUNT ]; then"                                        >> $SCRIPT_FILE
-    echo "    echo 'chain $CHAIN had expected packet count $EXPECTED_COUNT.'"             >> $SCRIPT_FILE
-    echo "else"                                                                           >> $SCRIPT_FILE
-    echo "    echo \"chain $CHAIN had packet count \$COUNT, should be $EXPECTED_COUNT.\"" >> $SCRIPT_FILE
-    echo "fi"                                                                             >> $SCRIPT_FILE
-    echo ''                                                                               >> $SCRIPT_FILE
-}
-
 ###################################################################################################
 # Name: 
 #  createTestScripts
@@ -681,87 +577,180 @@ createTestScripts()
     fi
 
     echo "Creating external_tests.sh. Run these tests from $TEST_ADDR."
-    if [ -f ./external_tests.sh ]; then
-        rm -f ./external_tests.sh
+    if [ -f external_tests.sh ]; then
+        rm -f external_tests.sh
     fi
-    touch ./external_tests.sh
-    chmod +x ./external_tests.sh
+    touch external_tests.sh
+    chmod +x external_tests.sh
 
     echo "Creating internal_tests.sh. Run these tests from $INTERNAL_STATIC_IP."
-    if [ -f ./internal_tests.sh ]; then
-        rm -f ./internal_tests.sh
+    if [ -f internal_tests.sh ]; then
+        rm -f internal_tests.sh
     fi
-    touch ./internal_tests.sh
-    chmod +x ./internal_tests.sh
+    touch internal_tests.sh
+    chmod +x internal_tests.sh
 
     echo "Creating fw_pre_test.sh. Run this script on the firewall machine after the firewall has been enabled and before running the test scripts."
-    if [ -f ./fw_pre_test.sh ]; then
-        rm -f ./fw_pre_test.sh
+    if [ -f fw_pre_test.sh ]; then
+        rm -f fw_pre_test.sh
     fi
-    touch ./fw_pre_test.sh
-    chmod +x ./fw_pre_test.sh
+    touch fw_pre_test.sh
+    chmod +x fw_pre_test.sh
 
     echo "Creating fw_post_test.sh. Run this script on the firewall machine after the external_tests.sh and internal_tests.sh have been run."
-    if [ -f ./fw_post_test.sh ]; then
-        rm -f ./fw_post_test.sh
-    fi
-    touch ./fw_post_test.sh
-    chmod +x ./fw_post_test.sh
+    cat test/fw_post_test_start.sh > fw_post_test.sh
+    chmod +x fw_post_test.sh
 
-    # TCP tests can check the return value of hping3 since they should actually get a response
-    # All other tests are verified only by the firewall pre/post test scripts.
-
+    
     splitServices $TCP_SVC_IN
-    EXPECTED_TCP_IN_ACCEPTED=0
-    EXPECTED_TCP_IN_DROPPED=0
+    TCP_IN_TEST_COUNT=${#RESULT[@]}
     echo '# TCP inbound tests.' >> ./external_tests.sh
     for i in "${RESULT[@]}"; do
-        echo "Adding inbound test for port $i."
+        
+        # Write the hping command to perform the test
+        echo "Adding inbound test for TCP port $i."
         
         getServicePort $i tcp
         PORT=$RESOLVED
 
-        echo "# Inbound test for port $i." >> ./external_tests.sh
+        echo "# Inbound test for TCP port $i." >> ./external_tests.sh
         echo "$HPING_PROGRAM -c 1 -p $PORT --syn $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
-        writeHpingTest ./external_tests.sh 0 "$i inbound"
-
-        (( EXPECTED_TCP_IN_ACCEPTED += 1 ))
     done
 
     splitServices $TCP_SVC_OUT
-    EXPECTED_TCP_OUT_ACCEPTED=0
+    TCP_OUT_TEST_COUNT=${#RESULT[@]}
     echo '# TCP outbound tests.' >> ./internal_tests.sh
     for i in "${RESULT[@]}"; do
-        echo "Adding outbound test for port $i."
+        echo "Adding outbound test for TCP port $i."
         
         getServicePort $i tcp
         PORT=$RESOLVED
 
-        echo "# Outbound $i test." >> ./internal_tests.sh
+        echo "# Outbound $i (TCP) test." >> ./internal_tests.sh
         echo "$HPING_PROGRAM -c 1 -p $PORT --syn $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
-        writeHpingTest ./internal_tests.sh 0 "$i outbound"
-
-        (( EXPECTED_TCP_OUT_ACCEPTED += 1 ))
     done
 
-    writeTestChainCreation ./fw_pre_test.sh tcp $TEST_ADDR
-    writePacketCountTest ./fw_post_test.sh tcp-in-start $(( $EXPECTED_TCP_IN_ACCEPTED + $EXPECTED_TCP_IN_DROPPED ))
-    writePacketCountTest ./fw_post_test.sh tcp-in-end $EXPECTED_TCP_IN_DROPPED
+    # Write the corresponding tests to the firewall test script
+    echo "for (( i=0; i<$(( $TCP_IN_TEST_COUNT + $TCP_OUT_TEST_COUNT )); i++ )) do"                                 >> fw_post_test.sh
+    echo "    echo \"Checking packet counts for tcp-in and tcp-out rule \$i.\""                                     >> fw_post_test.sh
+    echo "    echo \"             pkts bytes target     prot opt in     out     source               destination\"" >> fw_post_test.sh
+    echo "    echo \"tcp-in rule \$i:  \${TCP_IN_RESULTS[i]}\""                                                     >> fw_post_test.sh
+    echo "    echo \"tcp-out rule \$i: \${TCP_OUT_RESULTS[i]}\""                                                    >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${TCP_IN_RESULTS[i]}\""                                                             >> fw_post_test.sh
+    echo "    doPacketCountTest tcp-in \$i 1 \$COUNT"                                                               >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${TCP_OUT_RESULTS[i]}\""                                                            >> fw_post_test.sh
+    echo "    doPacketCountTest tcp-out \$i 1 \$COUNT"                                                              >> fw_post_test.sh
+    echo "    echo ''"                                                                                              >> fw_post_test.sh
+    echo "done"                                                                                                     >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
 
-    # Create test chains
-    # In the firewall, we create a user-defined chain "explicit_drop" (or similar) with default dropped packets
-    # We also create tcp-in, tcp-out, upd-in, udp-out, etc.
-    # Insert test-tcp-in-start chain to the beginning of tcp-in and test-tcp-in-end at the end. These will take the test device's IP into account.
-    # Perform all tests on both machines (external and internal).
-    # Check final counts for each chain. We won't get the same granularity, but if there are problems, we can at least isolate the chain (tcp-in, tcp-out, etc.)
-    # with failing tests.
-    # "Check final counts" means:
-    #   all packets that should be dropped by default hit the first chain in the default drop chain but not the last one
-    #   all packets that should make it through the dropped by default hit the first chain and the last one
-    #   etc. for the other chains, except reversed
+    splitServices $UDP_SVC_IN
+    UDP_IN_TEST_COUNT=${#RESULT[@]}
+    echo '# UDP inbound tests.' >> ./external_tests.sh
+    for i in "${RESULT[@]}"; do
+        
+        # Write the hping command to perform the test
+        echo "Adding inbound test for UDP port $i."
+        
+        getServicePort $i udp
+        PORT=$RESOLVED
 
-#    if [ -f ./internal_tests.sh ]; then
-#        
+        echo "# Inbound test for UDP port $i." >> ./external_tests.sh
+        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+    done
+
+    splitServices $UDP_SVC_OUT
+    UDP_OUT_TEST_COUNT=${#RESULT[@]}
+    echo '# UDP outbound tests.' >> ./internal_tests.sh
+    for i in "${RESULT[@]}"; do
+        echo "Adding outbound test for UDP port $i."
+        
+        getServicePort $i tcp
+        PORT=$RESOLVED
+
+        echo "# Outbound $i (UDP) test." >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+    done
+
+    echo "for (( i=0; i<$UDP_IN_TEST_COUNT; i++ )) do"                                                              >> fw_post_test.sh
+    echo "    echo \"Checking packet counts for udp-in rule \$i.\""                                                 >> fw_post_test.sh
+    echo "    echo \"             pkts bytes target     prot opt in     out     source               destination\"" >> fw_post_test.sh
+    echo "    echo \"udp-in rule \$i:  \${UDP_IN_RESULTS[i]}\""                                                     >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${ICMP_IN_RESULTS[i]}\""                                                            >> fw_post_test.sh
+    echo "    doPacketCountTest udp-in \$i 1 \$COUNT"                                                               >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    echo ''"                                                                                              >> fw_post_test.sh
+    echo "done"                                                                                                     >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "for (( i=$UDP_IN_TEST_COUNT; i<$(( $UDP_IN_TEST_COUNT + $UDP_OUT_TEST_COUNT )); i++ )) do"                >> fw_post_test.sh
+    echo "    ACTUAL_RULE=\$(( \$i - $UDP_IN_TEST_COUNT ))"                                                         >> fw_post_test.sh
+    echo "    echo \"Checking packet counts for udp-out rule \$ACTUAL_RULE.\""                                      >> fw_post_test.sh
+    echo "    echo \"             pkts bytes target     prot opt in     out     source               destination\"" >> fw_post_test.sh
+    echo "    echo \"udp-out rule \$i:  \${UDP_OUT_RESULTS[i]}\""                                                   >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${UDP_OUT_RESULTS[i]}\""                                                            >> fw_post_test.sh
+    echo "    doPacketCountTest udp-out \$i 1 \$COUNT"                                                              >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    echo ''"                                                                                              >> fw_post_test.sh
+    echo "done"                                                                                                     >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+
+    splitServices $ICMP_SVC_IN
+    ICMP_IN_TEST_COUNT=${#RESULT[@]}
+    echo '# ICMP inbound tests.' >> ./external_tests.sh
+    for i in "${RESULT[@]}"; do
+        
+        # Write the hping command to perform the test
+        echo "Adding inbound test for ICMP type $i."
+        echo "# Inbound test for ICMP type $i." >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 --icmp-type $i $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+    done
+
+    splitServices $ICMP_SVC_OUT
+    ICMP_OUT_TEST_COUNT=${#RESULT[@]}
+    echo '# ICMP outbound tests.' >> ./internal_tests.sh
+    for i in "${RESULT[@]}"; do
+        echo "Adding outbound test for ICMP type $i."
+        echo "# Outbound $i (UDP) test." >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 --icmp-type $i $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+    done
+
+    echo "for (( i=0; i<$ICMP_IN_TEST_COUNT; i++ )) do"                                                             >> fw_post_test.sh
+    echo "    echo \"Checking packet counts for icmp-in rule \$i.\""                                                >> fw_post_test.sh
+    echo "    echo \"             pkts bytes target     prot opt in     out     source               destination\"" >> fw_post_test.sh
+    echo "    echo \"icmp-in rule \$i:  \${ICMP_IN_RESULTS[i]}\""                                                   >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${ICMP_IN_RESULTS[i]}\""                                                            >> fw_post_test.sh
+    echo "    doPacketCountTest icmp-in \$i 1 \$COUNT"                                                              >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    echo ''"                                                                                              >> fw_post_test.sh
+    echo "done"                                                                                                     >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "for (( i=0; i<$ICMP_OUT_TEST_COUNT; i++ )) do"                                                            >> fw_post_test.sh
+    echo "    echo \"Checking packet counts for icmp-out rule \$i.\""                                               >> fw_post_test.sh
+    echo "    echo \"             pkts bytes target     prot opt in     out     source               destination\"" >> fw_post_test.sh
+    echo "    echo \"icmp-out rule \$i:  \${ICMP_OUT_RESULTS[i]}\""                                                 >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    getPacketCount \"\${ICMP_OUT_RESULTS[i]}\""                                                           >> fw_post_test.sh
+    echo "    doPacketCountTest icmp-out \$i 1 \$COUNT"                                                             >> fw_post_test.sh
+    echo                                                                                                            >> fw_post_test.sh
+    echo "    echo ''"                                                                                              >> fw_post_test.sh
+    echo "done"                                                                                                     >> fw_post_test.sh
+ 
+    # For testing purposes, only allow packets to/from the test device
+    # That way, we can test against expected packet counts
+    echo "iptables -N check-dest-addr"                              >> ./fw_pre_test.sh
+    echo "iptables -A check-dest-addr ! -d $TEST_ADDR -j DROP"      >> ./fw_pre_test.sh
+    echo "iptables -I FORWARD 1 ! -s $TEST_ADDR -j check-dest-addr" >> ./fw_pre_test.sh
+    echo "iptables -Z"                                              >> ./fw_pre_test.sh
+
+    echo                               >> ./fw_post_test.sh
+    echo "iptables -F check-dest-addr" >> ./fw_post_test.sh
+    echo "iptables -D FORWARD 1"       >> ./fw_post_test.sh
+    echo "iptables -X check-dest-addr" >> ./fw_post_test.sh
 }
 
 ###################################################################################################
@@ -776,69 +765,63 @@ mainMenu()
 {
     while true
     do
-	clear
-	displayMenu
-	read ltr rest
-	case ${ltr} in
-		1)		configureFirewallLocation
-				continueApplication
-				mainMenu;;
-		2)		configureExternalAddressSpaceAndDevice
-        	    continueApplication
-                mainMenu;;
-		3)	    configureInternalAddressSpaceAndDevice
-		        continueApplication
-		        mainMenu;;
-		4)		configureTCPServices
-		        continueApplication
-		        mainMenu;;
-		5)		configureUDPServices
-		        continueApplication
-		        mainMenu;;
-		6)		configureICMPServices
-		        continueApplication
-		        mainMenu;;
-		7)		configureGateway
-				continueApplication
-		        mainMenu;;
-		8)		showCurrentSettings
-				continueApplication
-		        mainMenu;;
-		9)		startFirewall
-				continueApplication
-		        mainMenu;;
-		10)		setupRouting
-				continueApplication
-		        mainMenu;;
-		11)		internalMachineSetup
-				continueApplication
-		        mainMenu;;
-		12)		resetSettings
-				continueApplication
-		        mainMenu;;
-		13)		disableFirewall
-				continueApplication
-		        mainMenu;;
-		14)		resetRouting
-				continueApplication
-		        mainMenu;;
-		15)		resetMachine
-				continueApplication
-		        mainMenu;;
-		16)		setDefaults
-				continueApplication
-		        mainMenu;;
-		17)		createTestScripts
-				continueApplication
-		        mainMenu;;
-	    [Qq])	exit	;;
-	    *)	echo
-	    
-		echo Unrecognized choice: ${ltr}
+    clear
+    displayMenu
+    read ltr rest
+    case ${ltr} in
+        1)      showCurrentSettings
                 continueApplication
-				mainMenu
-		;;
-	esac        
+                mainMenu;;
+        2)      setDefaults
+                continueApplication
+                mainMenu;;
+        3)      resetSettings
+                continueApplication
+                mainMenu;;
+        4)      configureFirewallLocation
+                continueApplication
+                mainMenu;;
+        5)      configureExternalAddressSpaceAndDevice
+                continueApplication
+                mainMenu;;
+        6)      configureInternalAddressSpaceAndDevice
+                continueApplication
+                mainMenu;;
+        7)      configureTCPServices
+                continueApplication
+                mainMenu;;
+        8)      configureUDPServices
+                continueApplication
+                mainMenu;;
+        9)      configureICMPServices
+                continueApplication
+                mainMenu;;
+       10)      configureGateway
+                continueApplication
+                mainMenu;;
+       11)      internalMachineSetup
+                continueApplication
+                mainMenu;;
+       12)      internalMachineReset
+                continueApplication
+                mainMenu;;
+       13)      createTestScripts
+                continueApplication
+                mainMenu;;
+       14)      startFirewall
+                continueApplication
+                mainMenu;;
+       15)      disableFirewall
+                continueApplication
+                mainMenu;;
+     [Qq])      exit;;
+        *)      echo
+        
+                echo Unrecognized choice: ${ltr}
+                        continueApplication
+                        mainMenu
+                ;;
+    esac        
     done
 }
 
@@ -854,23 +837,21 @@ displayMenu()
         Welcome to Assignment #2: Standalone Firewall
         By Mat Siwoski & Shane Spoor
         
-        1............................  Specify Firewall Script Location/Name
-        2............................  Customise External Address Space and Device
-        3............................  Customise Internal Address Space and Device      
-        4............................  Configure TCP Services
-        5............................  Configure UDP Services
-        6............................  Configure ICMP Services
-        7............................  Configure the Gateway
-        8............................  Show Current Settings
-        9............................  Start Firewall
-        10..........................   Enable Routing
-        11...........................  Set up Internal Machine 
-        12...........................  Reset Settings
-        13...........................  Disable Firewall
-        14...........................  Disable Routing
-        15...........................  Reset the NIC on the machine
-        16...........................  Set Defaults
-        17...........................  Generate Test Scripts
+        1............................  Show Current Settings
+        2............................  Set Defaults
+        3............................  Reset Settings
+        4............................  Specify Firewall Script Location/Name
+        5............................  Customise External Address Space and Device
+        6............................  Customise Internal Address Space and Device
+        7............................  Configure TCP Services
+        8............................  Configure UDP Services
+        9............................  Configure ICMP Services
+        10...........................  Configure the Gateway
+        11..........................   Set up Internal Machine
+        12..........................   Reset Internal Machine
+        13...........................  Generate Test Scripts
+        14...........................  Start Firewall
+        15...........................  Disable Firewall
 
         Q............................  Quit
 
