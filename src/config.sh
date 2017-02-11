@@ -256,6 +256,13 @@ configureICMPServices()
     done
 }
 
+
+###################################################################################################
+# Name: 
+#  getServicePort
+# Description:
+#  This function gets the service port.
+###################################################################################################
 getServicePort()
 {
     SERVICE=$1
