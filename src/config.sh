@@ -713,7 +713,7 @@ createTestScripts()
         # Write the hping command to perform the test
         echo "Adding inbound test for ICMP type $i."
         echo "# Inbound test for ICMP type $i." >> ./external_tests.sh
-        echo "$HPING_PROGRAM -c 1 --icmp-type $i $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -C $i $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
     done
 
     splitServices $ICMP_SVC_OUT
@@ -722,7 +722,7 @@ createTestScripts()
     for i in "${RESULT[@]}"; do
         echo "Adding outbound test for ICMP type $i."
         echo "# Outbound $i (UDP) test." >> ./internal_tests.sh
-        echo "$HPING_PROGRAM -c 1 --icmp-type $i $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 -C $i $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
     done
 
     echo "for (( i=0; i<$ICMP_IN_TEST_COUNT; i++ )) do"                                                             >> fw_post_test.sh

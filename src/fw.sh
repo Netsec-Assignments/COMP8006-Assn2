@@ -297,9 +297,6 @@ ICMP_SVC_IN=(${RESULT[@]})
 splitServices $ICMP_SVC_OUT
 ICMP_SVC_OUT=(${RESULT[@]})
 
-#resetRouting
-#setupRouting
-
 deleteFilters
 resetFilters
 setupMangle
