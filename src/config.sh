@@ -584,11 +584,12 @@ createTestScripts()
     fi
 
     echo "Creating external_tests.sh. Run these tests from $TEST_ADDR."
-    if [ -f external_tests.sh ]; then
-        rm -f external_tests.sh
-    fi
-    touch external_tests.sh
+    cat test/external_tests_start.sh > external_tests.sh
+    sed -i "s/\$EXTERNAL_IP/$EXTERNAL_GATEWAY_IP/g" external_tests.sh
     chmod +x external_tests.sh
+    echo                                       >> external_tests.sh
+    echo '# Start of user-defined tests'       >> external_tests.sh
+    echo "echo 'Starting user-defined tests.'" >> external_tests.sh
 
     echo "Creating internal_tests.sh. Run these tests from $INTERNAL_STATIC_IP."
     if [ -f internal_tests.sh ]; then
@@ -596,6 +597,7 @@ createTestScripts()
     fi
     touch internal_tests.sh
     chmod +x internal_tests.sh
+    echo 'set -x' >> internal_tests.sh
 
     echo "Creating fw_pre_test.sh. Run this script on the firewall machine after the firewall has been enabled and before running the test scripts."
     if [ -f fw_pre_test.sh ]; then
@@ -621,7 +623,7 @@ createTestScripts()
         PORT=$RESOLVED
 
         echo "# Inbound test for TCP port $i." >> ./external_tests.sh
-        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
     done
 
     splitServices $TCP_SVC_OUT
@@ -634,7 +636,7 @@ createTestScripts()
         PORT=$RESOLVED
 
         echo "# Outbound $i (TCP) test." >> ./internal_tests.sh
-        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 -p $PORT --syn $TEST_ADDR" >> ./internal_tests.sh
     done
 
     # Write the corresponding tests to the firewall test script
@@ -665,7 +667,7 @@ createTestScripts()
         PORT=$RESOLVED
 
         echo "# Inbound test for UDP port $i." >> ./external_tests.sh
-        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
     done
 
     splitServices $UDP_SVC_OUT
@@ -678,7 +680,7 @@ createTestScripts()
         PORT=$RESOLVED
 
         echo "# Outbound $i (UDP) test." >> ./internal_tests.sh
-        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -2 -c 1 -p $PORT $TEST_ADDR" >> ./internal_tests.sh
     done
 
     echo "for (( i=0; i<$UDP_IN_TEST_COUNT; i++ )) do"                                                              >> fw_post_test.sh
@@ -713,7 +715,7 @@ createTestScripts()
         # Write the hping command to perform the test
         echo "Adding inbound test for ICMP type $i."
         echo "# Inbound test for ICMP type $i." >> ./external_tests.sh
-        echo "$HPING_PROGRAM -c 1 -C $i $EXTERNAL_GATEWAY_IP &>/dev/null" >> ./external_tests.sh
+        echo "$HPING_PROGRAM -c 1 -C $i $EXTERNAL_GATEWAY_IP" >> ./external_tests.sh
     done
 
     splitServices $ICMP_SVC_OUT
@@ -722,7 +724,7 @@ createTestScripts()
     for i in "${RESULT[@]}"; do
         echo "Adding outbound test for ICMP type $i."
         echo "# Outbound $i (UDP) test." >> ./internal_tests.sh
-        echo "$HPING_PROGRAM -c 1 -C $i $TEST_ADDR &>/dev/null" >> ./internal_tests.sh
+        echo "$HPING_PROGRAM -c 1 -C $i $TEST_ADDR" >> ./internal_tests.sh
     done
 
     echo "for (( i=0; i<$ICMP_IN_TEST_COUNT; i++ )) do"                                                             >> fw_post_test.sh
